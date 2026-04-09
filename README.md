@@ -1,37 +1,84 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# VoteChain — Decentralized Governance on Sepolia
+
+A Web3 voting dApp frontend built with Next.js 15, Tailwind v4, Three.js, and Shadcn/UI.
+
+## Tech Stack
+
+- **Next.js 15.2** (App Router, TypeScript)
+- **Tailwind CSS v4** (PostCSS plugin)
+- **Three.js** — animated 3D background (particles, wireframe grid, floating nodes)
+- **Shadcn/UI** — custom components (Button, Card, Badge, Progress, Input, Textarea, Tooltip)
+- **Framer Motion** — transitions
+- **Sonner** — toast notifications
+- **Lucide React** — icons
+- **Ethers.js v6** — ready for wallet integration
+
+## Features
+
+- 🗳 **Proposals** — browse active, ended, and pending proposals
+- ✅ **Vote** — cast FOR / AGAINST / ABSTAIN with animated progress bars
+- ➕ **Create** — deploy new proposals with title, description, and duration
+- 📊 **Results** — visualize vote outcomes with bar charts
+- 👛 **Wallet** — connect/disconnect (mock, ready for MetaMask)
+- 🌐 **Sepolia** — targeted at Ethereum Sepolia testnet
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+├── app/
+│   ├── layout.tsx       # Root layout with fonts & Toaster
+│   ├── page.tsx         # Main page with tabs
+│   └── globals.css      # Tailwind v4 + CSS variables
+├── components/
+│   ├── ThreeBackground.tsx  # Three.js animated canvas
+│   ├── Navbar.tsx           # Sticky nav + wallet connect
+│   ├── Hero.tsx             # Stats header
+│   ├── ProposalCard.tsx     # Vote card with animated bars
+│   ├── CreateProposal.tsx   # Proposal form
+│   ├── Results.tsx          # Results view
+│   └── ui/                  # Shadcn-style UI primitives
+│       ├── button.tsx
+│       ├── badge.tsx
+│       ├── card.tsx
+│       ├── progress.tsx
+│       ├── input.tsx
+│       ├── textarea.tsx
+│       └── tooltip.tsx
+├── hooks/
+│   ├── useWallet.ts     # Wallet state management
+│   └── useProposals.ts  # Proposals + voting logic
+├── lib/
+│   ├── utils.ts         # cn() helper
+│   └── data.ts          # Mock proposals
+└── types/
+    └── index.ts         # TypeScript types
+```
 
-## Learn More
+## Connecting Real Wallet (MetaMask)
 
-To learn more about Next.js, take a look at the following resources:
+Replace `useWallet.ts` connect logic with:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```ts
+const provider = new ethers.BrowserProvider(window.ethereum);
+await provider.send("eth_requestAccounts", []);
+const signer = await provider.getSigner();
+const address = await signer.getAddress();
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Make sure MetaMask is set to **Sepolia Testnet** (Chain ID: `11155111`).
 
-## Deploy on Vercel
+## Next Steps — Smart Contract
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-"# chain-vote" 
+1. Write `Voting.sol` with `createProposal()`, `vote()`, `getResults()`
+2. Deploy to Sepolia via Hardhat or Foundry
+3. Wire up `useProposals.ts` to call contract functions via ethers.js
