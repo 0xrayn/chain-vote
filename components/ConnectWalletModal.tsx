@@ -110,7 +110,7 @@ export default function ConnectWalletModal({ onConnect, onClose }: ConnectWallet
         >
           <Zap size={11} style={{ color: "var(--neon)" }} />
           <span className="text-xs" style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}>
-            DEMO MODE — SIMULATED CONNECTION
+            DEMO MODE · SIMULATED CONNECTION
           </span>
         </div>
       </div>

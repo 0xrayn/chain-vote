@@ -138,7 +138,7 @@ export default function AnalyticsPage() {
                   <div className="w-1.5 h-1.5 rounded-full glow-pulse" style={{ background: "var(--neon)" }} />
                   <span className="text-xs tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "var(--neon)" }}>NETWORK STATUS</span>
                 </div>
-                <p className="text-xs" style={{ color: "var(--muted)" }}>Sepolia Testnet — Block ~5.8M — Gas 12 gwei</p>
+                <p className="text-xs" style={{ color: "var(--muted)" }}>Sepolia Testnet · Block ~5.8M · Gas 12 gwei</p>
               </div>
             </div>
           </div>

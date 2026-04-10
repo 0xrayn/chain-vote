@@ -151,7 +151,7 @@ export default function DocsPage() {
                       { method: "GET", path: "/api/proposals", desc: "List all proposals", id: "get-list" },
                       { method: "GET", path: "/api/proposals/:id", desc: "Get single proposal", id: "get-single" },
                       { method: "POST", path: "/api/proposals", desc: "Create a new proposal", id: "post-create" },
-                      { method: "POST", path: "/api/vote", desc: "Submit a vote (requires signature)" },
+                      { method: "POST", path: "/api/vote", desc: "Submit a vote (requires signature)", id: "post-vote" },
                     ].map((ep) => (
                       <div key={ep.id} className="flex items-center gap-3 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
                         <span className="text-xs px-2 py-0.5 rounded font-bold w-14 text-center"
@@ -189,7 +189,7 @@ export default function DocsPage() {
                   <div className="p-5 rounded-2xl flex items-start gap-3" style={{ background: "rgba(255,71,87,0.05)", border: "1px solid rgba(255,71,87,0.2)" }}>
                     <ChevronRight size={14} style={{ color: "var(--danger)", marginTop: 2, flexShrink: 0 }} />
                     <p className="text-sm" style={{ color: "var(--text2)" }}>
-                      Found a vulnerability? Email <span style={{ color: "var(--neon2)" }}>security@votechain.io</span> — we offer up to $50,000 in bug bounties.
+                      Found a vulnerability? Email <span style={{ color: "var(--neon2)" }}>security@votechain.io</span>, we offer up to $50,000 in bug bounties.
                     </p>
                   </div>
                 </div>

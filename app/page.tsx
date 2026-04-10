@@ -63,8 +63,8 @@ export default function Home() {
           <Hero proposals={proposals} />
 
           {/* Stats row */}
-          <div className="max-w-6xl mx-auto px-4 mb-8">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="max-w-6xl mx-auto px-3 sm:px-4 mb-6 sm:mb-8">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
               {STATS.map((stat, i) => (
                 <div
                   key={stat.label}
@@ -121,14 +121,14 @@ export default function Home() {
           </div>
 
           {/* Tabs */}
-          <div className="flex justify-center gap-2 px-4 mb-8">
+          <div className="flex justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 mb-6 sm:mb-8 flex-wrap">
             {TABS.map((tab) => {
               const isActive = activeTab === tab.key;
               return (
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className="relative flex items-center gap-2 px-5 py-3 rounded-xl text-xs tracking-widest overflow-hidden"
+                  className="relative flex items-center gap-2 px-3 sm:px-5 py-2 sm:py-3 rounded-xl text-xs tracking-widest overflow-hidden"
                   style={{
                     fontFamily: "var(--font-mono)",
                     border: isActive ? "1px solid var(--neon2)" : "1px solid var(--border)",
@@ -175,7 +175,7 @@ export default function Home() {
           </div>
 
           {/* Tab content with animated transitions */}
-          <div className="max-w-6xl mx-auto px-4 pb-4">
+          <div className="max-w-6xl mx-auto px-3 sm:px-4 pb-4">
             {activeTab === "proposals" && (
               <div className="animate-scaleIn">
                 {proposals.length === 0 ? (

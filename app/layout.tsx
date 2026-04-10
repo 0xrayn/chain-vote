@@ -17,7 +17,7 @@ const spaceMono = Space_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "VoteChain — Decentralized Governance on Sepolia",
+  title: "VoteChain: Decentralized Governance on Sepolia",
   description: "Create proposals, cast votes, and shape the future on Ethereum Sepolia testnet.",
   icons: { icon: "/favicon.ico" },
 };

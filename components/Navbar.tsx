@@ -41,7 +41,7 @@ export default function Navbar({ wallet, shortAddress, onConnect, onDisconnect }
         transition: "box-shadow 0.3s ease",
       }}
     >
-      <div className="max-w-7xl mx-auto flex items-center px-5 py-3 relative">
+      <div className="max-w-7xl mx-auto flex items-center px-3 sm:px-5 py-3 relative">
 
         {/* Logo - left */}
         <Link href="/" className="flex items-center gap-2.5 group flex-shrink-0" style={{ textDecoration: "none" }}>
