@@ -1,153 +1,95 @@
 "use client";
 import { useEffect, useRef } from "react";
-import * as THREE from "three";
+import { useTheme } from "@/components/ThemeProvider";
 
 export default function ThreeBackground() {
-  const mountRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { theme } = useTheme();
 
   useEffect(() => {
-    const canvas = mountRef.current;
+    const canvas = canvasRef.current;
     if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    let w = 0, h = 0, raf = 0;
+    const particles: { x: number; y: number; vx: number; vy: number; r: number; opacity: number }[] = [];
 
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(
-      60,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      100
-    );
-    camera.position.z = 3;
-
-    // Particle field
-    const particleCount = 800;
-    const positions = new Float32Array(particleCount * 3);
-    for (let i = 0; i < particleCount * 3; i += 3) {
-      positions[i] = (Math.random() - 0.5) * 16;
-      positions[i + 1] = (Math.random() - 0.5) * 16;
-      positions[i + 2] = (Math.random() - 0.5) * 10;
-    }
-    const particleGeo = new THREE.BufferGeometry();
-    particleGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    const particleMat = new THREE.PointsMaterial({
-      color: 0x00d4ff,
-      size: 0.022,
-      transparent: true,
-      opacity: 0.35,
-    });
-    scene.add(new THREE.Points(particleGeo, particleMat));
-
-    // Second particle layer — neon green
-    const positions2 = new Float32Array(300 * 3);
-    for (let i = 0; i < 300 * 3; i += 3) {
-      positions2[i] = (Math.random() - 0.5) * 14;
-      positions2[i + 1] = (Math.random() - 0.5) * 14;
-      positions2[i + 2] = (Math.random() - 0.5) * 8;
-    }
-    const geo2 = new THREE.BufferGeometry();
-    geo2.setAttribute("position", new THREE.BufferAttribute(positions2, 3));
-    const mat2 = new THREE.PointsMaterial({
-      color: 0x00f5a0,
-      size: 0.015,
-      transparent: true,
-      opacity: 0.25,
-    });
-    scene.add(new THREE.Points(geo2, mat2));
-
-    // Wireframe grid
-    const gridGeo = new THREE.PlaneGeometry(24, 24, 28, 28);
-    const gridMat = new THREE.MeshBasicMaterial({
-      color: 0x0d1d2e,
-      wireframe: true,
-      transparent: true,
-      opacity: 0.1,
-    });
-    const grid = new THREE.Mesh(gridGeo, gridMat);
-    grid.rotation.x = -Math.PI / 2.5;
-    grid.position.y = -2.5;
-    scene.add(grid);
-
-    // Floating octahedron nodes
-    type NodeMesh = THREE.Mesh & { userData: { vy: number; rot: number } };
-    const nodes: NodeMesh[] = [];
-    for (let i = 0; i < 8; i++) {
-      const r = Math.random() * 0.06 + 0.03;
-      const geo = new THREE.OctahedronGeometry(r, 0);
-      const mat = new THREE.MeshBasicMaterial({
-        color: i % 2 === 0 ? 0x00f5a0 : 0x00d4ff,
-        wireframe: true,
-        transparent: true,
-        opacity: 0.25 + Math.random() * 0.35,
-      });
-      const mesh = new THREE.Mesh(geo, mat) as NodeMesh;
-      mesh.position.set(
-        (Math.random() - 0.5) * 8,
-        (Math.random() - 0.5) * 4,
-        (Math.random() - 0.5) * 3
-      );
-      mesh.userData = { vy: (Math.random() - 0.5) * 0.003, rot: Math.random() * 0.012 };
-      scene.add(mesh);
-      nodes.push(mesh);
-    }
-
-    // Connection lines between some nodes
-    for (let i = 0; i < 4; i++) {
-      const points = [nodes[i].position, nodes[i + 1 < nodes.length ? i + 1 : 0].position];
-      const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
-      const lineMat = new THREE.LineBasicMaterial({
-        color: 0x1a3a5c,
-        transparent: true,
-        opacity: 0.4,
-      });
-      scene.add(new THREE.Line(lineGeo, lineMat));
-    }
-
-    const handleResize = () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
+    const resize = () => {
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
     };
-    window.addEventListener("resize", handleResize);
 
-    let t = 0;
-    let animId: number;
-    const animate = () => {
-      animId = requestAnimationFrame(animate);
-      t += 0.004;
+    const init = () => {
+      particles.length = 0;
+      const count = Math.min(55, Math.floor((w * h) / 22000));
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          vx: (Math.random() - 0.5) * 0.3,
+          vy: (Math.random() - 0.5) * 0.3,
+          r: Math.random() * 1.6 + 0.4,
+          opacity: Math.random() * 0.5 + 0.1,
+        });
+      }
+    };
 
-      grid.position.z = Math.sin(t * 0.25) * 0.3;
-      grid.rotation.z = Math.sin(t * 0.1) * 0.01;
+    const draw = () => {
+      ctx.clearRect(0, 0, w, h);
+      const isLight = theme === "light";
+      const dotColor = isLight ? "0,145,106" : "0,245,160";
+      const lineColor = isLight ? "0,123,181" : "0,212,255";
 
-      nodes.forEach((n) => {
-        n.position.y += n.userData.vy;
-        if (n.position.y > 3.5 || n.position.y < -3.5) n.userData.vy *= -1;
-        n.rotation.x += n.userData.rot;
-        n.rotation.y += n.userData.rot * 0.7;
-        n.rotation.z += n.userData.rot * 0.3;
+      particles.forEach((p) => {
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x < 0) p.x = w;
+        if (p.x > w) p.x = 0;
+        if (p.y < 0) p.y = h;
+        if (p.y > h) p.y = 0;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${dotColor},${p.opacity})`;
+        ctx.fill();
       });
 
-      particleMat.opacity = 0.25 + Math.sin(t) * 0.08;
-      mat2.opacity = 0.18 + Math.cos(t * 0.8) * 0.07;
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 120) {
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.strokeStyle = `rgba(${lineColor},${0.12 * (1 - dist / 120)})`;
+            ctx.lineWidth = 0.6;
+            ctx.stroke();
+          }
+        }
+      }
 
-      renderer.render(scene, camera);
+      raf = requestAnimationFrame(draw);
     };
-    animate();
 
+    resize();
+    init();
+    draw();
+
+    window.addEventListener("resize", () => { resize(); init(); });
     return () => {
-      cancelAnimationFrame(animId);
-      window.removeEventListener("resize", handleResize);
-      renderer.dispose();
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", () => {});
     };
-  }, []);
+  }, [theme]);
 
   return (
     <canvas
-      ref={mountRef}
-      className="fixed inset-0 w-full h-full pointer-events-none"
-      style={{ zIndex: 0 }}
+      ref={canvasRef}
+      className="fixed inset-0 pointer-events-none"
+      style={{ zIndex: 0, opacity: 0.65 }}
     />
   );
 }

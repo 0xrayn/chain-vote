@@ -1,106 +1,164 @@
 "use client";
-import { Wallet, Zap, Activity } from "lucide-react";
-import { WalletState } from "@/types";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
+import { Activity, Zap, Sun, Moon, Menu, X } from "lucide-react";
+import { useTheme } from "@/components/ThemeProvider";
 import { cn } from "@/lib/utils";
 
-interface NavbarProps {
-  wallet: WalletState;
-  shortAddress: string | null;
-  onConnect: () => void;
-  onDisconnect: () => void;
-}
+const LINKS = [
+  { href: "/", label: "Proposals" },
+  { href: "/results", label: "Results" },
+  { href: "/leaderboard", label: "Stats" },
+  { href: "/create", label: "Create" },
+  { href: "/docs", label: "Docs" },
+];
 
-export default function Navbar({
-  wallet,
-  shortAddress,
-  onConnect,
-  onDisconnect,
-}: NavbarProps) {
+export default function Navbar() {
+  const pathname = usePathname();
+  const { theme, toggle } = useTheme();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   return (
     <nav
-      className="sticky top-0 z-50 flex items-center justify-between px-6 py-4 border-b"
+      className="sticky top-0 z-50 border-b"
       style={{
         borderColor: "var(--border)",
-        backdropFilter: "blur(16px)",
-        background: "rgba(5,10,15,0.75)",
+        backdropFilter: "blur(18px)",
+        background: theme === "dark"
+          ? "rgba(7,13,20,0.88)"
+          : "rgba(240,246,255,0.92)",
       }}
     >
-      {/* Logo */}
-      <div className="flex items-center gap-3">
-        <div
-          className="w-8 h-8 rounded flex items-center justify-center"
-          style={{ background: "rgba(0,245,160,0.1)", border: "1px solid rgba(0,245,160,0.3)" }}
-        >
-          <Zap size={16} style={{ color: "var(--neon)" }} />
-        </div>
-        <span
-          className="text-lg font-bold tracking-widest"
-          style={{
-            fontFamily: "var(--font-mono)",
-            color: "var(--neon)",
-            textShadow: "0 0 20px rgba(0,245,160,0.35)",
-          }}
-        >
-          VOTE<span style={{ color: "var(--neon2)" }}>CHAIN</span>
-        </span>
-      </div>
-
-      {/* Center badge */}
-      <div className="hidden md:flex items-center gap-2">
-        <Activity size={12} style={{ color: "var(--neon)" }} />
-        <span
-          className="text-xs tracking-widest"
-          style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}
-        >
-          SEPOLIA TESTNET
-        </span>
-        <div
-          className="w-2 h-2 rounded-full animate-pulse"
-          style={{ background: "var(--neon)", boxShadow: "0 0 6px var(--neon)" }}
-        />
-      </div>
-
-      {/* Wallet */}
-      <div className="flex items-center gap-3">
-        {wallet.connected && wallet.balance && (
-          <span
-            className="hidden md:block text-xs px-3 py-1.5 rounded"
+      <div className="max-w-6xl mx-auto flex items-center justify-between px-5 h-[60px]">
+        <Link href="/" className="flex items-center gap-2.5 no-underline">
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center"
             style={{
-              fontFamily: "var(--font-mono)",
-              color: "var(--muted)",
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
+              background: "rgba(0,245,160,0.12)",
+              border: "1px solid rgba(0,245,160,0.3)",
             }}
           >
-            {wallet.balance} ETH
+            <Zap size={15} style={{ color: "var(--neon)" }} />
+          </div>
+          <span
+            className="text-lg font-extrabold tracking-widest"
+            style={{ fontFamily: "var(--font-mono)" }}
+          >
+            <span style={{ color: "var(--neon)" }}>VOTE</span>
+            <span style={{ color: "var(--neon2)" }}>CHAIN</span>
           </span>
-        )}
-        <button
-          onClick={wallet.connected ? onDisconnect : onConnect}
-          className={cn(
-            "flex items-center gap-2 px-4 py-2 rounded text-xs tracking-widest transition-all duration-200",
-            wallet.connected
-              ? "hover:opacity-80"
-              : "hover:shadow-lg"
-          )}
-          style={{
-            fontFamily: "var(--font-mono)",
-            border: wallet.connected
-              ? "1px solid rgba(0,245,160,0.4)"
-              : "1px solid rgba(0,212,255,0.4)",
-            color: wallet.connected ? "var(--neon)" : "var(--neon2)",
-            background: wallet.connected
-              ? "rgba(0,245,160,0.05)"
-              : "rgba(0,212,255,0.05)",
-            boxShadow: wallet.connected
-              ? "none"
-              : "0 0 20px rgba(0,212,255,0.12)",
-          }}
-        >
-          <Wallet size={13} />
-          {wallet.connected ? shortAddress : "CONNECT WALLET"}
-        </button>
+        </Link>
+
+        <div className="hidden md:flex items-center gap-1">
+          {LINKS.map((l) => {
+            const active = pathname === l.href;
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 no-underline",
+                )}
+                style={{
+                  background: active ? "rgba(0,212,255,0.14)" : "transparent",
+                  border: active
+                    ? "1px solid rgba(0,212,255,0.45)"
+                    : "1px solid transparent",
+                  color: active ? "var(--neon2)" : "var(--muted)",
+                }}
+                onMouseEnter={(e) => {
+                  if (!active) {
+                    e.currentTarget.style.color = "var(--text)";
+                    e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!active) {
+                    e.currentTarget.style.color = "var(--muted)";
+                    e.currentTarget.style.background = "transparent";
+                  }
+                }}
+              >
+                {l.label}
+              </Link>
+            );
+          })}
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <div
+            className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full"
+            style={{
+              background: "rgba(0,245,160,0.08)",
+              border: "1px solid rgba(0,245,160,0.22)",
+            }}
+          >
+            <Activity size={11} style={{ color: "var(--neon)" }} />
+            <span
+              className="text-xs tracking-widest"
+              style={{ fontFamily: "var(--font-mono)", color: "var(--neon)" }}
+            >
+              SEPOLIA
+            </span>
+            <div
+              className="w-1.5 h-1.5 rounded-full animate-pulse-glow"
+              style={{ background: "var(--neon)" }}
+            />
+          </div>
+
+          <button
+            onClick={toggle}
+            className="w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200"
+            style={{
+              background: "var(--surface2)",
+              border: "1px solid var(--border)",
+              color: "var(--muted)",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--muted)"; }}
+          >
+            {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
+
+          <button
+            className="md:hidden w-9 h-9 rounded-lg flex items-center justify-center"
+            style={{
+              background: "var(--surface2)",
+              border: "1px solid var(--border)",
+              color: "var(--muted)",
+            }}
+            onClick={() => setMobileOpen((o) => !o)}
+          >
+            {mobileOpen ? <X size={16} /> : <Menu size={16} />}
+          </button>
+        </div>
       </div>
+
+      {mobileOpen && (
+        <div
+          className="md:hidden px-4 pb-4 animate-fade-in"
+          style={{ borderTop: "1px solid var(--border)" }}
+        >
+          {LINKS.map((l) => {
+            const active = pathname === l.href;
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                onClick={() => setMobileOpen(false)}
+                className="block py-3 px-3 rounded-lg my-1 text-sm font-semibold no-underline transition-all duration-200"
+                style={{
+                  color: active ? "var(--neon2)" : "var(--muted)",
+                  background: active ? "rgba(0,212,255,0.1)" : "transparent",
+                }}
+              >
+                {l.label}
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </nav>
   );
 }

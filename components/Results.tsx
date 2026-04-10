@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState } from "react";
 import { Proposal } from "@/types";
 import { Trophy, Users } from "lucide-react";
 
@@ -7,36 +8,50 @@ function pct(v: number, t: number) {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  active: "var(--neon)",
-  ended: "var(--muted)",
+  active:  "var(--neon)",
+  ended:   "var(--muted)",
   pending: "var(--warn)",
 };
 
-interface ResultsProps {
-  proposals: Proposal[];
+function AnimatedBar({ value, color }: { value: number; color: string }) {
+  const [w, setW] = useState(0);
+  useEffect(() => { const id = setTimeout(() => setW(value), 120); return () => clearTimeout(id); }, [value]);
+  return (
+    <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "var(--surface2)" }}>
+      <div
+        className="h-full rounded-full"
+        style={{ width: `${w}%`, background: color, transition: "width 1s cubic-bezier(.4,0,.2,1)" }}
+      />
+    </div>
+  );
 }
+
+interface ResultsProps { proposals: Proposal[]; }
 
 export default function Results({ proposals }: ResultsProps) {
   return (
     <div className="flex flex-col gap-4">
-      {proposals.map((p) => {
+      {proposals.map((p, i) => {
         const yp = pct(p.yes, p.total);
         const np = pct(p.no, p.total);
         const ap = pct(p.abstain, p.total);
-        const winner =
-          p.total > 0 ? (p.yes > p.no ? "FOR WINS" : "AGAINST WINS") : null;
+        const winner = p.total > 0 ? (p.yes > p.no ? "FOR WINS" : "AGAINST WINS") : null;
 
         const bars = [
-          { label: "FOR", pct: yp, count: p.yes, color: "var(--neon)" },
-          { label: "AGAINST", pct: np, count: p.no, color: "var(--danger)" },
+          { label: "FOR",     pct: yp, count: p.yes,     color: "var(--neon)" },
+          { label: "AGAINST", pct: np, count: p.no,      color: "var(--danger)" },
           { label: "ABSTAIN", pct: ap, count: p.abstain, color: "var(--muted)" },
         ];
 
         return (
           <div
             key={p.id}
-            className="rounded-xl p-5"
-            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+            className="rounded-2xl p-5 animate-fade-in-up"
+            style={{
+              background: "var(--card)",
+              border: "1px solid var(--border)",
+              animationDelay: `${i * 60}ms`,
+            }}
           >
             <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
               <span
@@ -46,7 +61,7 @@ export default function Results({ proposals }: ResultsProps) {
                 {p.id}
               </span>
               <span
-                className="text-xs px-2 py-1 rounded tracking-widest"
+                className="text-xs px-2 py-1 rounded-md tracking-widest"
                 style={{
                   fontFamily: "var(--font-mono)",
                   color: STATUS_COLOR[p.status],
@@ -58,19 +73,11 @@ export default function Results({ proposals }: ResultsProps) {
               </span>
             </div>
 
-            <h3 className="font-bold text-base mb-1" style={{ color: "var(--text)" }}>
-              {p.title}
-            </h3>
+            <h3 className="font-bold text-base mb-1" style={{ color: "var(--text)" }}>{p.title}</h3>
 
-            <div
-              className="flex items-center gap-2 mb-4"
-              style={{ color: "var(--muted)" }}
-            >
+            <div className="flex items-center gap-2 mb-4" style={{ color: "var(--muted)" }}>
               <Users size={12} />
-              <span
-                className="text-xs tracking-widest"
-                style={{ fontFamily: "var(--font-mono)" }}
-              >
+              <span className="text-xs tracking-widest" style={{ fontFamily: "var(--font-mono)" }}>
                 {p.total.toLocaleString()} VOTES CAST
               </span>
             </div>
@@ -84,25 +91,11 @@ export default function Results({ proposals }: ResultsProps) {
                   >
                     {b.label}
                   </span>
-                  <div
-                    className="flex-1 h-2 rounded-full overflow-hidden"
-                    style={{ background: "var(--surface2)" }}
-                  >
-                    <div
-                      className="h-full rounded-full transition-all duration-1000"
-                      style={{ width: `${b.pct}%`, background: b.color }}
-                    />
-                  </div>
-                  <span
-                    className="text-xs w-10 text-right"
-                    style={{ fontFamily: "var(--font-mono)", color: b.color }}
-                  >
+                  <AnimatedBar value={b.pct} color={b.color} />
+                  <span className="text-xs w-9 text-right" style={{ fontFamily: "var(--font-mono)", color: b.color }}>
                     {b.pct}%
                   </span>
-                  <span
-                    className="text-xs w-14 text-right"
-                    style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}
-                  >
+                  <span className="text-xs w-12 text-right" style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}>
                     {b.count.toLocaleString()}
                   </span>
                 </div>
@@ -111,7 +104,7 @@ export default function Results({ proposals }: ResultsProps) {
 
             {winner && (
               <div
-                className="inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded tracking-widest"
+                className="inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg tracking-widest"
                 style={{
                   fontFamily: "var(--font-mono)",
                   color: "var(--neon)",

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Syne, Space_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
 const syne = Syne({
   subsets: ["latin"],
@@ -19,29 +20,31 @@ export const metadata: Metadata = {
   title: "VoteChain — Decentralized Governance on Sepolia",
   description:
     "Create proposals, cast votes, and shape the future on Ethereum Sepolia testnet.",
-  icons: { icon: "/favicon.ico" },
+  icons: { icon: "/favicon.svg" },
 };
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${syne.variable} ${spaceMono.variable}`}>
+    <html lang="en" className={`${syne.variable} ${spaceMono.variable}`} suppressHydrationWarning>
       <body className="antialiased">
-        {children}
-        <Toaster
-          position="bottom-right"
-          toastOptions={{
-            style: {
-              background: "var(--surface)",
-              border: "1px solid var(--neon)",
-              color: "var(--neon)",
-              fontFamily: "var(--font-mono)",
-              fontSize: "0.78rem",
-              letterSpacing: "0.05em",
-            },
-          }}
-        />
+        <ThemeProvider>
+          {children}
+          <Toaster
+            position="bottom-right"
+            toastOptions={{
+              style: {
+                background: "var(--surface)",
+                border: "1px solid var(--neon)",
+                color: "var(--neon)",
+                fontFamily: "var(--font-mono)",
+                fontSize: "0.78rem",
+                letterSpacing: "0.05em",
+              },
+            }}
+          />
+        </ThemeProvider>
       </body>
     </html>
   );

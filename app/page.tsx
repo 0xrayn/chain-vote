@@ -1,108 +1,67 @@
 "use client";
-import dynamic from "next/dynamic";
 import { useState } from "react";
-import { LayoutGrid, PlusCircle, BarChart3 } from "lucide-react";
-import { useWallet } from "@/hooks/useWallet";
 import { useProposals } from "@/hooks/useProposals";
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import ProposalCard from "@/components/ProposalCard";
-import CreateProposal from "@/components/CreateProposal";
-import Results from "@/components/Results";
+import Footer from "@/components/Footer";
 
-const ThreeBackground = dynamic(() => import("@/components/ThreeBackground"), {
-  ssr: false,
-});
-
-type Tab = "proposals" | "create" | "results";
-
-const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
-  { key: "proposals", label: "PROPOSALS", icon: <LayoutGrid size={13} /> },
-  { key: "create", label: "+ CREATE", icon: <PlusCircle size={13} /> },
-  { key: "results", label: "RESULTS", icon: <BarChart3 size={13} /> },
-];
+const FILTERS = ["all", "active", "pending", "ended"] as const;
+type Filter = (typeof FILTERS)[number];
 
 export default function Home() {
-  const { wallet, connect, disconnect, shortAddress } = useWallet();
-  const { proposals, myVotes, vote, createProposal } = useProposals();
-  const [activeTab, setActiveTab] = useState<Tab>("proposals");
+  const { proposals, myVotes, vote } = useProposals();
+  const [filter, setFilter] = useState<Filter>("all");
 
-  const handleCreateProposal = (title: string, description: string) => {
-    const ok = createProposal(
-      title,
-      description,
-      wallet.address ?? "0x000",
-      wallet.connected
-    );
-    if (ok) setActiveTab("proposals");
-    return ok;
-  };
+  const filtered =
+    filter === "all" ? proposals : proposals.filter((p) => p.status === filter);
 
   return (
     <main className="relative min-h-screen" style={{ fontFamily: "var(--font-syne)" }}>
-      <ThreeBackground />
+      <Navbar />
+      <Hero proposals={proposals} />
 
-      {/* Content layer */}
-      <div className="relative z-10">
-        <Navbar
-          wallet={wallet}
-          shortAddress={shortAddress}
-          onConnect={connect}
-          onDisconnect={disconnect}
-        />
-
-        <Hero proposals={proposals} />
-
-        {/* Tabs */}
-        <div className="flex justify-center gap-1 px-4 mb-8">
-          {TABS.map((tab) => {
-            const isActive = activeTab === tab.key;
+      <div className="max-w-6xl mx-auto px-4 pb-10">
+        <div className="flex gap-2 flex-wrap mb-8 justify-center">
+          {FILTERS.map((f) => {
+            const count = f === "all" ? proposals.length : proposals.filter((p) => p.status === f).length;
+            const active = filter === f;
             return (
               <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs tracking-widest transition-all duration-200"
+                key={f}
+                onClick={() => setFilter(f)}
+                className="text-xs px-4 py-2.5 rounded-lg tracking-widest transition-all duration-200"
                 style={{
                   fontFamily: "var(--font-mono)",
-                  border: isActive ? "1px solid var(--neon2)" : "1px solid var(--border)",
-                  color: isActive ? "var(--neon2)" : "var(--muted)",
-                  background: isActive ? "rgba(0,212,255,0.08)" : "transparent",
-                  boxShadow: isActive ? "0 0 15px rgba(0,212,255,0.1)" : "none",
+                  border: active ? "1px solid var(--neon2)" : "1px solid var(--border)",
+                  color: active ? "var(--neon2)" : "var(--muted)",
+                  background: active ? "rgba(0,212,255,0.1)" : "transparent",
                 }}
               >
-                {tab.icon}
-                {tab.label}
+                {f.toUpperCase()} ({count})
               </button>
             );
           })}
         </div>
 
-        {/* Tab Content */}
-        <div className="max-w-6xl mx-auto px-4 pb-20">
-          {activeTab === "proposals" && (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-              {proposals.map((p) => (
-                <ProposalCard
-                  key={p.id}
-                  proposal={p}
-                  myVote={myVotes[p.id]}
-                  connected={wallet.connected}
-                  onVote={(id, choice) => vote(id, choice, wallet.connected)}
-                />
-              ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+          {filtered.map((p, i) => (
+            <div
+              key={p.id}
+              className="animate-fade-in-up"
+              style={{ animationDelay: `${i * 55}ms` }}
+            >
+              <ProposalCard
+                proposal={p}
+                myVote={myVotes[p.id]}
+                onVote={(id, choice) => vote(id, choice)}
+              />
             </div>
-          )}
-
-          {activeTab === "create" && (
-            <CreateProposal
-              onSubmit={handleCreateProposal}
-              connected={wallet.connected}
-            />
-          )}
-
-          {activeTab === "results" && <Results proposals={proposals} />}
+          ))}
         </div>
       </div>
+
+      <Footer />
     </main>
   );
 }
