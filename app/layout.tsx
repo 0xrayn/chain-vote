@@ -26,7 +26,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${syne.variable} ${spaceMono.variable}`}>
+    <html lang="en" className={`${syne.variable} ${spaceMono.variable}`} data-scroll-behavior="smooth">
       <body className="antialiased">
         <ThemeProvider>
           {children}

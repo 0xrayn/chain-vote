@@ -148,12 +148,12 @@ export default function DocsPage() {
                   <div className="rounded-2xl p-6" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
                     <h2 className="text-xl font-bold mb-4" style={{ color: "var(--text)" }}>REST API</h2>
                     {[
-                      { method: "GET", path: "/api/proposals", desc: "List all proposals" },
-                      { method: "GET", path: "/api/proposals/:id", desc: "Get single proposal" },
-                      { method: "POST", path: "/api/proposals", desc: "Create a new proposal" },
+                      { method: "GET", path: "/api/proposals", desc: "List all proposals", id: "get-list" },
+                      { method: "GET", path: "/api/proposals/:id", desc: "Get single proposal", id: "get-single" },
+                      { method: "POST", path: "/api/proposals", desc: "Create a new proposal", id: "post-create" },
                       { method: "POST", path: "/api/vote", desc: "Submit a vote (requires signature)" },
                     ].map((ep) => (
-                      <div key={ep.path} className="flex items-center gap-3 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
+                      <div key={ep.id} className="flex items-center gap-3 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
                         <span className="text-xs px-2 py-0.5 rounded font-bold w-14 text-center"
                           style={{ fontFamily: "var(--font-mono)", background: ep.method === "GET" ? "rgba(0,212,255,0.1)" : "rgba(0,245,160,0.1)", color: ep.method === "GET" ? "var(--neon2)" : "var(--neon)" }}>
                           {ep.method}
