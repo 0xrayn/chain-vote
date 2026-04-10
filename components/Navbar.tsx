@@ -1,162 +1,149 @@
 "use client";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
-import { Activity, Zap, Sun, Moon, Menu, X } from "lucide-react";
+import { Wallet, Zap, Activity, Sun, Moon, Menu, X } from "lucide-react";
+import { WalletState } from "@/types";
 import { useTheme } from "@/components/ThemeProvider";
-import { cn } from "@/lib/utils";
 
-const LINKS = [
-  { href: "/", label: "Proposals" },
-  { href: "/results", label: "Results" },
-  { href: "/leaderboard", label: "Stats" },
-  { href: "/create", label: "Create" },
-  { href: "/docs", label: "Docs" },
+interface NavbarProps {
+  wallet: WalletState;
+  shortAddress: string | null;
+  onConnect: () => void;
+  onDisconnect: () => void;
+}
+
+const NAV_LINKS = [
+  { href: "/", label: "GOVERNANCE" },
+  { href: "/explore", label: "EXPLORE" },
+  { href: "/analytics", label: "ANALYTICS" },
+  { href: "/docs", label: "DOCS" },
 ];
 
-export default function Navbar() {
-  const pathname = usePathname();
+export default function Navbar({ wallet, shortAddress, onConnect, onDisconnect }: NavbarProps) {
   const { theme, toggle } = useTheme();
+  const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <nav
-      className="sticky top-0 z-50 border-b"
-      style={{
-        borderColor: "var(--border)",
-        backdropFilter: "blur(18px)",
-        background: theme === "dark"
-          ? "rgba(7,13,20,0.88)"
-          : "rgba(240,246,255,0.92)",
-      }}
+      className="sticky top-0 z-50 glass"
+      style={{ borderBottom: "1px solid var(--border)" }}
     >
-      <div className="max-w-6xl mx-auto flex items-center justify-between px-5 h-[60px]">
-        <Link href="/" className="flex items-center gap-2.5 no-underline">
+      <div className="max-w-7xl mx-auto flex items-center justify-between px-5 py-3.5">
+        <Link href="/" className="flex items-center gap-2.5 group" style={{ textDecoration: "none" }}>
           <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{
-              background: "rgba(0,245,160,0.12)",
-              border: "1px solid rgba(0,245,160,0.3)",
-            }}
+            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 group-hover:scale-110"
+            style={{ background: "rgba(0,245,160,0.1)", border: "1px solid rgba(0,245,160,0.35)" }}
           >
             <Zap size={15} style={{ color: "var(--neon)" }} />
           </div>
           <span
-            className="text-lg font-extrabold tracking-widest"
-            style={{ fontFamily: "var(--font-mono)" }}
+            className="text-base font-bold tracking-widest"
+            style={{ fontFamily: "var(--font-mono)", color: "var(--neon)", textShadow: "0 0 20px rgba(0,245,160,0.3)" }}
           >
-            <span style={{ color: "var(--neon)" }}>VOTE</span>
-            <span style={{ color: "var(--neon2)" }}>CHAIN</span>
+            VOTE<span style={{ color: "var(--neon2)" }}>CHAIN</span>
           </span>
         </Link>
 
         <div className="hidden md:flex items-center gap-1">
-          {LINKS.map((l) => {
-            const active = pathname === l.href;
+          {NAV_LINKS.map((link) => {
+            const isActive = pathname === link.href;
             return (
               <Link
-                key={l.href}
-                href={l.href}
-                className={cn(
-                  "px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 no-underline",
-                )}
+                key={link.href}
+                href={link.href}
+                className="relative px-4 py-2 text-xs tracking-widest rounded-lg transition-all duration-200"
                 style={{
-                  background: active ? "rgba(0,212,255,0.14)" : "transparent",
-                  border: active
-                    ? "1px solid rgba(0,212,255,0.45)"
-                    : "1px solid transparent",
-                  color: active ? "var(--neon2)" : "var(--muted)",
-                }}
-                onMouseEnter={(e) => {
-                  if (!active) {
-                    e.currentTarget.style.color = "var(--text)";
-                    e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!active) {
-                    e.currentTarget.style.color = "var(--muted)";
-                    e.currentTarget.style.background = "transparent";
-                  }
+                  fontFamily: "var(--font-mono)",
+                  color: isActive ? "var(--neon2)" : "var(--muted)",
+                  background: isActive ? "rgba(0,212,255,0.08)" : "transparent",
+                  textDecoration: "none",
                 }}
               >
-                {l.label}
+                {isActive && (
+                  <span
+                    className="absolute bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full"
+                    style={{ background: "var(--neon2)" }}
+                  />
+                )}
+                {link.label}
               </Link>
             );
           })}
         </div>
 
         <div className="flex items-center gap-2.5">
-          <div
-            className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full"
-            style={{
-              background: "rgba(0,245,160,0.08)",
-              border: "1px solid rgba(0,245,160,0.22)",
-            }}
-          >
+          <div className="hidden md:flex items-center gap-2">
             <Activity size={11} style={{ color: "var(--neon)" }} />
-            <span
-              className="text-xs tracking-widest"
-              style={{ fontFamily: "var(--font-mono)", color: "var(--neon)" }}
-            >
+            <span className="text-xs tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}>
               SEPOLIA
             </span>
-            <div
-              className="w-1.5 h-1.5 rounded-full animate-pulse-glow"
-              style={{ background: "var(--neon)" }}
-            />
+            <div className="w-1.5 h-1.5 rounded-full glow-pulse" style={{ background: "var(--neon)" }} />
           </div>
 
           <button
             onClick={toggle}
-            className="w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200"
-            style={{
-              background: "var(--surface2)",
-              border: "1px solid var(--border)",
-              color: "var(--muted)",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--muted)"; }}
+            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110"
+            style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}
+            aria-label="Toggle theme"
           >
-            {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+            {theme === "dark"
+              ? <Sun size={14} style={{ color: "var(--warn)" }} />
+              : <Moon size={14} style={{ color: "var(--neon2)" }} />
+            }
+          </button>
+
+          {wallet.connected && wallet.balance && (
+            <span
+              className="hidden md:block text-xs px-3 py-1.5 rounded-lg"
+              style={{ fontFamily: "var(--font-mono)", color: "var(--muted)", background: "var(--surface2)", border: "1px solid var(--border)" }}
+            >
+              {wallet.balance} ETH
+            </span>
+          )}
+
+          <button
+            onClick={wallet.connected ? onDisconnect : onConnect}
+            className="btn-connect flex items-center gap-2 px-4 py-2 rounded-lg text-xs tracking-widest font-bold"
+            style={{ fontFamily: "var(--font-mono)" }}
+          >
+            <Wallet size={13} />
+            <span className="hidden sm:inline">
+              {wallet.connected ? shortAddress : "CONNECT WALLET"}
+            </span>
           </button>
 
           <button
-            className="md:hidden w-9 h-9 rounded-lg flex items-center justify-center"
-            style={{
-              background: "var(--surface2)",
-              border: "1px solid var(--border)",
-              color: "var(--muted)",
-            }}
-            onClick={() => setMobileOpen((o) => !o)}
+            className="flex md:hidden w-8 h-8 items-center justify-center rounded-lg"
+            style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}
+            onClick={() => setMobileOpen(!mobileOpen)}
           >
-            {mobileOpen ? <X size={16} /> : <Menu size={16} />}
+            {mobileOpen ? <X size={14} style={{ color: "var(--text)" }} /> : <Menu size={14} style={{ color: "var(--text)" }} />}
           </button>
         </div>
       </div>
 
       {mobileOpen && (
-        <div
-          className="md:hidden px-4 pb-4 animate-fade-in"
-          style={{ borderTop: "1px solid var(--border)" }}
-        >
-          {LINKS.map((l) => {
-            const active = pathname === l.href;
-            return (
+        <div className="md:hidden glass animate-slideDown" style={{ borderTop: "1px solid var(--border)" }}>
+          <div className="px-5 py-3 flex flex-col gap-1">
+            {NAV_LINKS.map((link) => (
               <Link
-                key={l.href}
-                href={l.href}
+                key={link.href}
+                href={link.href}
                 onClick={() => setMobileOpen(false)}
-                className="block py-3 px-3 rounded-lg my-1 text-sm font-semibold no-underline transition-all duration-200"
+                className="px-3 py-2.5 text-xs tracking-widest rounded-lg"
                 style={{
-                  color: active ? "var(--neon2)" : "var(--muted)",
-                  background: active ? "rgba(0,212,255,0.1)" : "transparent",
+                  fontFamily: "var(--font-mono)",
+                  color: pathname === link.href ? "var(--neon2)" : "var(--muted)",
+                  background: pathname === link.href ? "rgba(0,212,255,0.08)" : "transparent",
+                  textDecoration: "none",
                 }}
               >
-                {l.label}
+                {link.label}
               </Link>
-            );
-          })}
+            ))}
+          </div>
         </div>
       )}
     </nav>

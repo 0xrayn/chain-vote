@@ -1,118 +1,130 @@
 "use client";
 import Link from "next/link";
-import { Activity, Zap } from "lucide-react";
-
-const LINKS = [
-  { href: "/",            label: "Proposals" },
-  { href: "/results",     label: "Results" },
-  { href: "/leaderboard", label: "Stats" },
-  { href: "/create",      label: "Create" },
-  { href: "/docs",        label: "Docs" },
-];
+import { Zap, ExternalLink, Github, Twitter, ArrowRight } from "lucide-react";
 
 export default function Footer() {
+  const year = new Date().getFullYear();
+
+  const links = {
+    Protocol: [
+      { label: "Governance", href: "/" },
+      { label: "Proposals", href: "/explore" },
+      { label: "Analytics", href: "/analytics" },
+    ],
+    Resources: [
+      { label: "Documentation", href: "/docs" },
+      { label: "Smart Contracts", href: "https://sepolia.etherscan.io" },
+      { label: "SDK", href: "/docs" },
+    ],
+    Community: [
+      { label: "Discord", href: "#" },
+      { label: "Forum", href: "#" },
+      { label: "Twitter", href: "#" },
+    ],
+  };
+
   return (
     <footer
-      className="mt-20 border-t"
-      style={{ borderColor: "var(--border)", background: "rgba(7,13,20,0.55)" }}
+      className="relative z-10 mt-20"
+      style={{ borderTop: "1px solid var(--border)", background: "var(--surface)" }}
     >
-      <div className="max-w-6xl mx-auto px-5 py-12">
-        <div className="flex flex-wrap gap-10 justify-between mb-10">
-          <div style={{ maxWidth: 260 }}>
-            <div className="flex items-center gap-2.5 mb-3">
+      <div className="max-w-7xl mx-auto px-6 py-14">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 mb-12">
+          <div className="lg:col-span-2">
+            <div className="flex items-center gap-2.5 mb-4">
               <div
                 className="w-8 h-8 rounded-lg flex items-center justify-center"
-                style={{ background: "rgba(0,245,160,0.12)", border: "1px solid rgba(0,245,160,0.3)" }}
+                style={{ background: "rgba(0,245,160,0.1)", border: "1px solid rgba(0,245,160,0.3)" }}
               >
                 <Zap size={15} style={{ color: "var(--neon)" }} />
               </div>
               <span
-                className="text-lg font-extrabold tracking-widest"
-                style={{ fontFamily: "var(--font-mono)" }}
+                className="text-base font-bold tracking-widest"
+                style={{ fontFamily: "var(--font-mono)", color: "var(--neon)" }}
               >
-                <span style={{ color: "var(--neon)" }}>VOTE</span>
-                <span style={{ color: "var(--neon2)" }}>CHAIN</span>
+                VOTE<span style={{ color: "var(--neon2)" }}>CHAIN</span>
               </span>
             </div>
-            <p className="text-sm leading-relaxed" style={{ color: "var(--muted)" }}>
-              Decentralized governance protocol on Ethereum Sepolia testnet. Transparent, immutable, trustless.
+            <p className="text-sm leading-relaxed mb-5" style={{ color: "var(--text2)", maxWidth: "280px" }}>
+              Decentralized governance protocol built on Ethereum Sepolia. Trustless, transparent, and immutable.
             </p>
-          </div>
-
-          <div className="flex gap-14 flex-wrap">
-            <div>
-              <p
-                className="text-xs tracking-widest mb-4"
-                style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}
-              >
-                NAVIGATE
-              </p>
-              {LINKS.map((l) => (
-                <Link
-                  key={l.href}
-                  href={l.href}
-                  className="block mb-2 text-sm no-underline transition-colors duration-200"
-                  style={{ color: "var(--muted)" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "var(--muted)")}
-                >
-                  {l.label}
-                </Link>
-              ))}
-            </div>
-
-            <div>
-              <p
-                className="text-xs tracking-widest mb-4"
-                style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}
-              >
-                NETWORK
-              </p>
-              <p className="text-sm mb-1.5" style={{ color: "var(--muted)" }}>Ethereum Sepolia</p>
-              <p className="text-sm mb-1.5" style={{ color: "var(--muted)" }}>Chain ID: 11155111</p>
-              <div className="flex items-center gap-2 mt-3">
-                <Activity size={12} style={{ color: "var(--neon)" }} />
-                <span
-                  className="text-xs tracking-widest"
-                  style={{ fontFamily: "var(--font-mono)", color: "var(--neon)" }}
-                >
-                  LIVE
-                </span>
-                <div
-                  className="w-1.5 h-1.5 rounded-full animate-pulse-glow"
-                  style={{ background: "var(--neon)" }}
-                />
-              </div>
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full glow-pulse" style={{ background: "var(--neon)" }} />
+              <span className="text-xs tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}>
+                LIVE ON SEPOLIA TESTNET
+              </span>
             </div>
           </div>
+
+          {Object.entries(links).map(([group, items]) => (
+            <div key={group}>
+              <h4
+                className="text-xs tracking-widest mb-4 font-bold"
+                style={{ fontFamily: "var(--font-mono)", color: "var(--neon2)" }}
+              >
+                {group.toUpperCase()}
+              </h4>
+              <ul className="flex flex-col gap-2.5">
+                {items.map((item) => (
+                  <li key={item.label}>
+                    <Link
+                      href={item.href}
+                      className="text-sm transition-colors duration-200 flex items-center gap-1 group"
+                      style={{ color: "var(--text2)", textDecoration: "none" }}
+                    >
+                      <span className="group-hover:text-[var(--neon2)] transition-colors duration-200">
+                        {item.label}
+                      </span>
+                      {item.href.startsWith("http") && (
+                        <ExternalLink size={10} style={{ color: "var(--muted)" }} />
+                      )}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
 
         <div
-          className="flex flex-wrap items-center justify-between gap-4 pt-6"
+          className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8"
           style={{ borderTop: "1px solid var(--border)" }}
         >
-          <p
-            className="text-xs"
-            style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}
-          >
-            © 2025 VoteChain Protocol. All rights reserved.
-          </p>
+          <div className="flex items-center gap-2 text-xs" style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}>
+            <span>&copy; {year} VoteChain. MIT License.</span>
+          </div>
 
           <a
             href="https://rayn.web.id"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 text-xs no-underline transition-opacity duration-200"
+            className="flex items-center gap-2 text-xs tracking-widest group transition-all duration-200 px-4 py-2 rounded-lg"
             style={{
               fontFamily: "var(--font-mono)",
-              color: "var(--neon2)",
-              letterSpacing: "0.06em",
+              color: "var(--muted)",
+              background: "var(--surface2)",
+              border: "1px solid var(--border)",
+              textDecoration: "none",
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.65")}
-            onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
           >
-            Built by Rayn →
+            <span>Build by</span>
+            <span className="font-bold" style={{ color: "var(--neon2)" }}>RAYN</span>
+            <ArrowRight size={11} className="group-hover:translate-x-1 transition-transform duration-200" style={{ color: "var(--neon2)" }} />
+            <span className="group-hover:text-[var(--neon2)] transition-colors duration-200">rayn.web.id</span>
           </a>
+
+          <div className="flex items-center gap-2">
+            {[{ icon: <Github size={13} />, href: "#" }, { icon: <Twitter size={13} />, href: "#" }].map((s, i) => (
+              <a
+                key={i}
+                href={s.href}
+                className="w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-200 hover:scale-110"
+                style={{ color: "var(--muted)", background: "var(--surface2)", border: "1px solid var(--border)" }}
+              >
+                {s.icon}
+              </a>
+            ))}
+          </div>
         </div>
       </div>
     </footer>

@@ -1,67 +1,48 @@
 "use client";
-import { useEffect, useState } from "react";
 import { Proposal } from "@/types";
-import { Trophy, Users } from "lucide-react";
+import { Trophy, Users, TrendingUp } from "lucide-react";
 
 function pct(v: number, t: number) {
   return t === 0 ? 0 : Math.round((v / t) * 100);
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  active:  "var(--neon)",
-  ended:   "var(--muted)",
+  active: "var(--neon)",
+  ended: "var(--muted)",
   pending: "var(--warn)",
 };
 
-function AnimatedBar({ value, color }: { value: number; color: string }) {
-  const [w, setW] = useState(0);
-  useEffect(() => { const id = setTimeout(() => setW(value), 120); return () => clearTimeout(id); }, [value]);
-  return (
-    <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "var(--surface2)" }}>
-      <div
-        className="h-full rounded-full"
-        style={{ width: `${w}%`, background: color, transition: "width 1s cubic-bezier(.4,0,.2,1)" }}
-      />
-    </div>
-  );
+interface ResultsProps {
+  proposals: Proposal[];
 }
-
-interface ResultsProps { proposals: Proposal[]; }
 
 export default function Results({ proposals }: ResultsProps) {
   return (
-    <div className="flex flex-col gap-4">
-      {proposals.map((p, i) => {
+    <div className="flex flex-col gap-5">
+      {proposals.map((p) => {
         const yp = pct(p.yes, p.total);
         const np = pct(p.no, p.total);
         const ap = pct(p.abstain, p.total);
         const winner = p.total > 0 ? (p.yes > p.no ? "FOR WINS" : "AGAINST WINS") : null;
 
         const bars = [
-          { label: "FOR",     pct: yp, count: p.yes,     color: "var(--neon)" },
-          { label: "AGAINST", pct: np, count: p.no,      color: "var(--danger)" },
+          { label: "FOR", pct: yp, count: p.yes, color: "var(--neon)" },
+          { label: "AGAINST", pct: np, count: p.no, color: "var(--danger)" },
           { label: "ABSTAIN", pct: ap, count: p.abstain, color: "var(--muted)" },
         ];
 
         return (
           <div
             key={p.id}
-            className="rounded-2xl p-5 animate-fade-in-up"
-            style={{
-              background: "var(--card)",
-              border: "1px solid var(--border)",
-              animationDelay: `${i * 60}ms`,
-            }}
+            className="rounded-2xl p-6 card-hover"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
           >
             <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
-              <span
-                className="text-xs tracking-widest"
-                style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}
-              >
+              <span className="text-xs tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}>
                 {p.id}
               </span>
               <span
-                className="text-xs px-2 py-1 rounded-md tracking-widest"
+                className="text-xs px-2.5 py-1 rounded-full tracking-widest font-bold"
                 style={{
                   fontFamily: "var(--font-mono)",
                   color: STATUS_COLOR[p.status],
@@ -73,29 +54,37 @@ export default function Results({ proposals }: ResultsProps) {
               </span>
             </div>
 
-            <h3 className="font-bold text-base mb-1" style={{ color: "var(--text)" }}>{p.title}</h3>
+            <h3 className="font-bold text-base mb-2" style={{ color: "var(--text)" }}>{p.title}</h3>
 
-            <div className="flex items-center gap-2 mb-4" style={{ color: "var(--muted)" }}>
-              <Users size={12} />
-              <span className="text-xs tracking-widest" style={{ fontFamily: "var(--font-mono)" }}>
+            <div className="flex items-center gap-2 mb-5">
+              <Users size={11} style={{ color: "var(--muted)" }} />
+              <span className="text-xs tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}>
                 {p.total.toLocaleString()} VOTES CAST
               </span>
+              {p.total >= p.quorum && (
+                <>
+                  <TrendingUp size={11} style={{ color: "var(--neon)" }} />
+                  <span className="text-xs" style={{ fontFamily: "var(--font-mono)", color: "var(--neon)" }}>QUORUM MET</span>
+                </>
+              )}
             </div>
 
-            <div className="flex flex-col gap-2.5 mb-4">
+            <div className="flex flex-col gap-3 mb-5">
               {bars.map((b) => (
                 <div key={b.label} className="flex items-center gap-3">
-                  <span
-                    className="text-xs w-16 tracking-widest"
-                    style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}
-                  >
+                  <span className="text-xs w-14 tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}>
                     {b.label}
                   </span>
-                  <AnimatedBar value={b.pct} color={b.color} />
-                  <span className="text-xs w-9 text-right" style={{ fontFamily: "var(--font-mono)", color: b.color }}>
+                  <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "var(--surface2)" }}>
+                    <div
+                      className="h-full rounded-full transition-all duration-1000"
+                      style={{ width: `${b.pct}%`, background: b.color, boxShadow: `0 0 6px ${b.color}60` }}
+                    />
+                  </div>
+                  <span className="text-xs w-10 text-right font-bold" style={{ fontFamily: "var(--font-mono)", color: b.color }}>
                     {b.pct}%
                   </span>
-                  <span className="text-xs w-12 text-right" style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}>
+                  <span className="text-xs w-14 text-right" style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}>
                     {b.count.toLocaleString()}
                   </span>
                 </div>
@@ -104,12 +93,12 @@ export default function Results({ proposals }: ResultsProps) {
 
             {winner && (
               <div
-                className="inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg tracking-widest"
+                className="inline-flex items-center gap-2 text-xs px-3 py-2 rounded-xl tracking-widest"
                 style={{
                   fontFamily: "var(--font-mono)",
                   color: "var(--neon)",
-                  background: "rgba(0,245,160,0.08)",
-                  border: "1px solid rgba(0,245,160,0.25)",
+                  background: "rgba(0,245,160,0.07)",
+                  border: "1px solid rgba(0,245,160,0.2)",
                 }}
               >
                 <Trophy size={11} />
