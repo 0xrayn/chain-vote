@@ -87,7 +87,7 @@ export default function ThreeBackground() {
         transparent: true,
         opacity: 0.2 + Math.random() * 0.4,
       });
-      const mesh = new THREE.Mesh(nodeGeos[geoIdx], mat) as NodeMesh;
+      const mesh = new THREE.Mesh(nodeGeos[geoIdx], mat) as unknown as NodeMesh;
       mesh.position.set(
         (Math.random() - 0.5) * 10,
         (Math.random() - 0.5) * 5,
