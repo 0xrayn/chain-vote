@@ -43,6 +43,13 @@ export default function Home() {
     }
   };
 
+  // Force-cancel: reset state saat user paksa keluar (wallet stuck/tidak respond)
+  const handleForceCancel = () => {
+    setShowWalletModal(false);
+    setConnectingWallet("");
+  };
+
+
   const handleCreateProposal = async (title: string, description: string, duration: string) => {
     const ok = await createProposal(title, description, wallet.address ?? "0x000", wallet.connected, duration);
     if (ok) setActiveTab("proposals");

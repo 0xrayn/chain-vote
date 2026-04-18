@@ -53,6 +53,7 @@ const WALLET_OPTIONS: WalletOption[] = [
 interface ConnectWalletModalProps {
   onConnect: (walletType: string) => void;
   onClose: () => void;
+  onForceCancel?: () => void;  // force-cancel saat wallet stuck/tidak respond
   isConnecting?: boolean;
   connectingWallet?: string;
   discoveredProviders?: EIP6963ProviderDetail[];
@@ -61,12 +62,27 @@ interface ConnectWalletModalProps {
 export default function ConnectWalletModal({
   onConnect,
   onClose,
+  onForceCancel,
   isConnecting = false,
   connectingWallet = "",
   discoveredProviders = [],
 }: ConnectWalletModalProps) {
 
   const [providerIcons, setProviderIcons] = useState<Record<string, string>>({});
+
+  // Escape key: tutup modal kalau tidak connecting, atau force-cancel kalau connecting
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (isConnecting && onForceCancel) {
+        onForceCancel();
+      } else if (!isConnecting) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isConnecting, onClose, onForceCancel]);
 
   // Extract icons from EIP-6963 providers
   useEffect(() => {
@@ -101,7 +117,11 @@ export default function ConnectWalletModal({
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 modal-bg animate-fadeIn"
-      onClick={(e) => e.target === e.currentTarget && !isConnecting && onClose()}
+      onClick={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (isConnecting && onForceCancel) onForceCancel();
+        else if (!isConnecting) onClose();
+      }}
     >
       <div
         className="w-full max-w-md rounded-2xl overflow-hidden animate-scaleIn"
@@ -128,14 +148,26 @@ export default function ConnectWalletModal({
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            disabled={isConnecting}
-            className="w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--muted)" }}
-          >
-            <X size={13} />
-          </button>
+          {isConnecting && onForceCancel ? (
+            // Saat connecting: tampilkan tombol Cancel aktif agar user tidak terjebak
+            <button
+              onClick={onForceCancel}
+              className="flex items-center gap-1.5 px-3 h-7 rounded-lg text-xs transition-all duration-200 hover:opacity-80"
+              style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171", fontFamily: "var(--font-mono)" }}
+            >
+              <X size={11} />
+              CANCEL
+            </button>
+          ) : (
+            <button
+              onClick={onClose}
+              disabled={isConnecting}
+              className="w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--muted)" }}
+            >
+              <X size={13} />
+            </button>
+          )}
         </div>
 
         <div className="p-4">

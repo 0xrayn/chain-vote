@@ -179,8 +179,19 @@ export function useWallet() {
 
       let accounts: string[];
       try {
-        accounts = await provider.request({ method: "eth_requestAccounts" });
+        // Wrap eth_requestAccounts dengan timeout 30 detik
+        // Bitget kadang tidak resolve dan tidak reject — diam saja selamanya
+        accounts = await Promise.race([
+          provider.request({ method: "eth_requestAccounts" }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("WALLET_TIMEOUT")), 30000)
+          ),
+        ]) as string[];
       } catch (reqErr: any) {
+        if (reqErr.message === "WALLET_TIMEOUT") {
+          toast.error("Wallet did not respond. Please try again or approve in your wallet app.");
+          return;
+        }
         if (reqErr.code === 4001 || reqErr.code === "ACTION_REJECTED") {
           toast.error("Connection rejected. Please approve in your wallet.");
           return;

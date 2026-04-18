@@ -73,6 +73,13 @@ export default function AnalyticsPage() {
     }
   };
 
+  // Force-cancel: reset state saat user paksa keluar (wallet stuck/tidak respond)
+  const handleForceCancel = () => {
+    setShowWalletModal(false);
+    setConnectingWallet("");
+  };
+
+
   return (
     <main className="relative min-h-screen grid-bg" style={{ fontFamily: "var(--font-syne)" }}>
       <ThreeBackground />
@@ -166,6 +173,7 @@ export default function AnalyticsPage() {
         <ConnectWalletModal
           onConnect={handleConnectConfirm}
           onClose={() => { if (!isConnecting) setShowWalletModal(false); }}
+          onForceCancel={handleForceCancel}
           isConnecting={isConnecting}
           connectingWallet={connectingWallet}
           discoveredProviders={discoveredProviders}
