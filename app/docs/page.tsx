@@ -137,12 +137,14 @@ export default function DocsPage() {
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [connectingWallet, setConnectingWallet] = useState("");
 
-  // FIX: Modal ditutup setelah connect selesai
   const handleConnectConfirm = async (walletType: string) => {
     setConnectingWallet(walletType);
-    await connect(walletType);
-    setShowWalletModal(false);
-    setConnectingWallet("");
+    try {
+      await connect(walletType);
+    } finally {
+      setShowWalletModal(false);
+      setConnectingWallet("");
+    }
   };
 
   return (

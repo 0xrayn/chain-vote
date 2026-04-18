@@ -31,13 +31,16 @@ export default function Home() {
 
   const handleConnect = () => setShowWalletModal(true);
 
-  // FIX: Modal ditutup SETELAH connect selesai, bukan sebelumnya
-  // Ini memastikan user bisa melihat spinner dan approve MetaMask popup
+  // Modal ditutup setelah connect selesai — apapun hasilnya (sukses/cancel/error)
   const handleConnectConfirm = async (walletType: string) => {
     setConnectingWallet(walletType);
-    await connect(walletType);
-    setShowWalletModal(false);
-    setConnectingWallet("");
+    try {
+      await connect(walletType);
+    } finally {
+      // finally memastikan modal SELALU ditutup, termasuk saat user cancel/reject
+      setShowWalletModal(false);
+      setConnectingWallet("");
+    }
   };
 
   const handleCreateProposal = async (title: string, description: string, duration: string) => {

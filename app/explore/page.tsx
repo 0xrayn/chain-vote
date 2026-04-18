@@ -37,12 +37,14 @@ export default function ExplorePage() {
     return matchFilter && matchSearch;
   });
 
-  // FIX: Modal ditutup setelah connect selesai
   const handleConnectConfirm = async (walletType: string) => {
     setConnectingWallet(walletType);
-    await connect(walletType);
-    setShowWalletModal(false);
-    setConnectingWallet("");
+    try {
+      await connect(walletType);
+    } finally {
+      setShowWalletModal(false);
+      setConnectingWallet("");
+    }
   };
 
   return (
