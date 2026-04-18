@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Wallet, Zap, Activity, Sun, Moon, Menu, X } from "lucide-react";
+import { Wallet, Zap, Activity, Sun, Moon, Menu, X, AlertTriangle, Loader2 } from "lucide-react";
 import { WalletState } from "@/types";
 import { useTheme } from "@/components/ThemeProvider";
 
@@ -11,6 +11,9 @@ interface NavbarProps {
   shortAddress: string | null;
   onConnect: () => void;
   onDisconnect: () => void;
+  isConnecting?: boolean;
+  isWrongNetwork?: boolean;
+  onSwitchNetwork?: () => void;
 }
 
 const NAV_LINKS = [
@@ -20,7 +23,15 @@ const NAV_LINKS = [
   { href: "/docs", label: "DOCS" },
 ];
 
-export default function Navbar({ wallet, shortAddress, onConnect, onDisconnect }: NavbarProps) {
+export default function Navbar({
+  wallet,
+  shortAddress,
+  onConnect,
+  onDisconnect,
+  isConnecting = false,
+  isWrongNetwork = false,
+  onSwitchNetwork,
+}: NavbarProps) {
   const { theme, toggle } = useTheme();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -31,6 +42,38 @@ export default function Navbar({ wallet, shortAddress, onConnect, onDisconnect }
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  const handleWalletAction = () => {
+    if (isConnecting) return;
+    if (isWrongNetwork && onSwitchNetwork) {
+      onSwitchNetwork();
+      return;
+    }
+    if (wallet.connected) {
+      onDisconnect();
+    } else {
+      onConnect();
+    }
+  };
+
+  const walletBtnLabel = isConnecting
+    ? "CONNECTING..."
+    : isWrongNetwork
+    ? "WRONG NETWORK"
+    : wallet.connected
+    ? shortAddress ?? "CONNECTED"
+    : "CONNECT WALLET";
+
+  const walletBtnColor = isWrongNetwork
+    ? "var(--warn)"
+    : wallet.connected
+    ? "var(--neon)"
+    : "var(--neon)";
 
   return (
     <nav
@@ -43,7 +86,7 @@ export default function Navbar({ wallet, shortAddress, onConnect, onDisconnect }
     >
       <div className="max-w-7xl mx-auto flex items-center px-3 sm:px-5 py-3 relative">
 
-        {/* Logo - left */}
+        {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 group flex-shrink-0" style={{ textDecoration: "none" }}>
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -54,12 +97,14 @@ export default function Navbar({ wallet, shortAddress, onConnect, onDisconnect }
               transition: "all 0.3s ease",
             }}
             onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.transform = "scale(1.1) rotate(12deg)";
-              (e.currentTarget as HTMLElement).style.boxShadow = "0 0 24px rgba(0,245,160,0.4)";
+              const el = e.currentTarget as HTMLElement;
+              el.style.transform = "scale(1.1) rotate(12deg)";
+              el.style.boxShadow = "0 0 24px rgba(0,245,160,0.4)";
             }}
             onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.transform = "scale(1) rotate(0deg)";
-              (e.currentTarget as HTMLElement).style.boxShadow = "0 0 12px rgba(0,245,160,0.15)";
+              const el = e.currentTarget as HTMLElement;
+              el.style.transform = "scale(1) rotate(0deg)";
+              el.style.boxShadow = "0 0 12px rgba(0,245,160,0.15)";
             }}
           >
             <Zap size={15} style={{ color: "var(--neon)" }} />
@@ -76,14 +121,10 @@ export default function Navbar({ wallet, shortAddress, onConnect, onDisconnect }
           </span>
         </Link>
 
-        {/* Nav Links - truly centered */}
+        {/* Nav Links - centered */}
         <div
           className="hidden md:flex items-center gap-1"
-          style={{
-            position: "absolute",
-            left: "50%",
-            transform: "translateX(-50%)",
-          }}
+          style={{ position: "absolute", left: "50%", transform: "translateX(-50%)" }}
         >
           {NAV_LINKS.map((link) => {
             const isActive = pathname === link.href;
@@ -125,37 +166,45 @@ export default function Navbar({ wallet, shortAddress, onConnect, onDisconnect }
           })}
         </div>
 
-        {/* Right side controls */}
+        {/* Right side */}
         <div className="flex items-center gap-2 ml-auto">
 
-          {/* SEPOLIA badge - proper spacing */}
+          {/* Sepolia badge */}
           <div
             className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full flex-shrink-0"
             style={{
-              background: "rgba(0,245,160,0.06)",
-              border: "1px solid rgba(0,245,160,0.18)",
+              background: isWrongNetwork ? "rgba(255,165,2,0.06)" : "rgba(0,245,160,0.06)",
+              border: isWrongNetwork ? "1px solid rgba(255,165,2,0.3)" : "1px solid rgba(0,245,160,0.18)",
             }}
           >
-            <Activity size={10} style={{ color: "var(--neon)" }} />
+            {isWrongNetwork ? (
+              <AlertTriangle size={10} style={{ color: "var(--warn)" }} />
+            ) : (
+              <Activity size={10} style={{ color: "var(--neon)" }} />
+            )}
             <span
               style={{
                 fontFamily: "var(--font-mono)",
-                color: "var(--neon)",
+                color: isWrongNetwork ? "var(--warn)" : "var(--neon)",
                 fontSize: "0.65rem",
                 letterSpacing: "0.12em",
               }}
             >
-              SEPOLIA
+              {isWrongNetwork ? "WRONG NET" : "SEPOLIA"}
             </span>
             <div
-              className="w-1.5 h-1.5 rounded-full glow-pulse flex-shrink-0"
-              style={{ background: "var(--neon)" }}
+              className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+              style={{
+                background: isWrongNetwork ? "var(--warn)" : "var(--neon)",
+                animation: isWrongNetwork ? "none" : "pulseGlow 2.5s ease-in-out infinite",
+              }}
             />
           </div>
 
-          {/* Theme toggle - fixed to actually change theme */}
+          {/* Theme toggle */}
           <button
             onClick={toggle}
+            aria-label="Toggle theme"
             className="flex items-center justify-center rounded-lg"
             style={{
               width: "34px",
@@ -180,7 +229,6 @@ export default function Navbar({ wallet, shortAddress, onConnect, onDisconnect }
               el.style.borderColor = "var(--border)";
               el.style.boxShadow = "none";
             }}
-            aria-label="Toggle theme"
           >
             {theme === "dark"
               ? <Sun size={14} style={{ color: "var(--warn)" }} />
@@ -189,7 +237,7 @@ export default function Navbar({ wallet, shortAddress, onConnect, onDisconnect }
           </button>
 
           {/* Balance */}
-          {wallet.connected && wallet.balance && (
+          {wallet.connected && wallet.balance && !isWrongNetwork && (
             <span
               className="hidden md:block text-xs px-3 py-1.5 rounded-lg flex-shrink-0"
               style={{
@@ -203,16 +251,26 @@ export default function Navbar({ wallet, shortAddress, onConnect, onDisconnect }
             </span>
           )}
 
-          {/* Connect button */}
+          {/* Connect / Disconnect button */}
           <button
-            onClick={wallet.connected ? onDisconnect : onConnect}
-            className="btn-connect flex items-center gap-2 px-4 py-2 rounded-lg text-xs tracking-widest font-bold flex-shrink-0"
-            style={{ fontFamily: "var(--font-mono)" }}
+            onClick={handleWalletAction}
+            disabled={isConnecting}
+            className="btn-connect flex items-center gap-2 px-4 py-2 rounded-lg text-xs tracking-widest font-bold flex-shrink-0 disabled:opacity-70 disabled:cursor-not-allowed"
+            style={{
+              fontFamily: "var(--font-mono)",
+              color: walletBtnColor,
+              borderColor: isWrongNetwork ? "rgba(255,165,2,0.5)" : undefined,
+              background: isWrongNetwork ? "rgba(255,165,2,0.08)" : undefined,
+            }}
           >
-            <Wallet size={13} />
-            <span className="hidden sm:inline">
-              {wallet.connected ? shortAddress : "CONNECT WALLET"}
-            </span>
+            {isConnecting ? (
+              <Loader2 size={13} className="animate-spin" />
+            ) : isWrongNetwork ? (
+              <AlertTriangle size={13} />
+            ) : (
+              <Wallet size={13} />
+            )}
+            <span className="hidden sm:inline">{walletBtnLabel}</span>
           </button>
 
           {/* Mobile hamburger */}
@@ -224,8 +282,10 @@ export default function Navbar({ wallet, shortAddress, onConnect, onDisconnect }
               background: "var(--surface2)",
               border: "1px solid var(--border)",
               transition: "all 0.2s ease",
+              flexShrink: 0,
             }}
             onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label="Toggle mobile menu"
           >
             <span style={{ display: "flex", transition: "transform 0.3s ease", transform: mobileOpen ? "rotate(90deg)" : "rotate(0)" }}>
               {mobileOpen
@@ -241,17 +301,20 @@ export default function Navbar({ wallet, shortAddress, onConnect, onDisconnect }
         <div className="md:hidden glass animate-slideDown" style={{ borderTop: "1px solid var(--border)" }}>
           <div className="px-5 py-3 flex flex-col gap-1">
             <div className="flex items-center gap-2 px-3 py-2 mb-1" style={{ borderBottom: "1px solid var(--border)" }}>
-              <Activity size={10} style={{ color: "var(--neon)" }} />
-              <span style={{ fontFamily: "var(--font-mono)", color: "var(--neon)", fontSize: "0.65rem", letterSpacing: "0.1em" }}>
-                SEPOLIA TESTNET
+              <Activity size={10} style={{ color: isWrongNetwork ? "var(--warn)" : "var(--neon)" }} />
+              <span style={{ fontFamily: "var(--font-mono)", color: isWrongNetwork ? "var(--warn)" : "var(--neon)", fontSize: "0.65rem", letterSpacing: "0.1em" }}>
+                {isWrongNetwork ? "WRONG NETWORK" : "SEPOLIA TESTNET"}
               </span>
-              <div className="w-1.5 h-1.5 rounded-full glow-pulse ml-auto" style={{ background: "var(--neon)" }} />
+              {wallet.balance && !isWrongNetwork && (
+                <span className="ml-auto text-xs" style={{ fontFamily: "var(--font-mono)", color: "var(--neon)" }}>
+                  {wallet.balance} ETH
+                </span>
+              )}
             </div>
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                onClick={() => setMobileOpen(false)}
                 className="px-3 py-2.5 text-xs tracking-widest rounded-lg"
                 style={{
                   fontFamily: "var(--font-mono)",

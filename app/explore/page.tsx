@@ -20,11 +20,12 @@ const FILTERS: { key: ProposalStatus | "all"; label: string }[] = [
 ];
 
 export default function ExplorePage() {
-  const { wallet, connect, disconnect, shortAddress } = useWallet();
-  const { proposals, myVotes, vote } = useProposals();
+  const { wallet, connect, disconnect, shortAddress, isConnecting, isWrongNetwork, switchToSepolia, discoveredProviders } = useWallet();
+  const { proposals, myVotes, vote, votingId } = useProposals();
   const [filter, setFilter] = useState<ProposalStatus | "all">("all");
   const [search, setSearch] = useState("");
   const [showWalletModal, setShowWalletModal] = useState(false);
+  const [connectingWallet, setConnectingWallet] = useState("");
 
   const filtered = proposals.filter((p) => {
     const matchFilter = filter === "all" || p.status === filter;
@@ -36,6 +37,13 @@ export default function ExplorePage() {
     return matchFilter && matchSearch;
   });
 
+  const handleConnectConfirm = async (walletType: string) => {
+    setShowWalletModal(false);
+    setConnectingWallet(walletType);
+    await connect(walletType);
+    setConnectingWallet("");
+  };
+
   return (
     <main className="relative min-h-screen grid-bg" style={{ fontFamily: "var(--font-syne)" }}>
       <ThreeBackground />
@@ -45,6 +53,9 @@ export default function ExplorePage() {
           shortAddress={shortAddress}
           onConnect={() => setShowWalletModal(true)}
           onDisconnect={disconnect}
+          isConnecting={isConnecting}
+          isWrongNetwork={isWrongNetwork}
+          onSwitchNetwork={switchToSepolia}
         />
 
         <div className="flex-1 max-w-6xl mx-auto w-full px-4 py-12">
@@ -78,7 +89,7 @@ export default function ExplorePage() {
                 }}
               />
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <Filter size={13} style={{ color: "var(--muted)" }} />
               {FILTERS.map((f) => (
                 <button
@@ -98,11 +109,8 @@ export default function ExplorePage() {
             </div>
           </div>
 
-          <div
-            className="text-xs tracking-widest mb-4"
-            style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}
-          >
-            {filtered.length} PROPOSALS FOUND
+          <div className="text-xs tracking-widest mb-4" style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}>
+            {filtered.length} PROPOSAL{filtered.length !== 1 ? "S" : ""} FOUND
           </div>
 
           {filtered.length === 0 ? (
@@ -120,8 +128,9 @@ export default function ExplorePage() {
                   key={p.id}
                   proposal={p}
                   myVote={myVotes[p.id]}
-                  connected={wallet.connected}
-                  onVote={(id, choice) => vote(id, choice, wallet.connected)}
+                  connected={wallet.connected && !isWrongNetwork}
+                  onVote={(id, choice) => vote(id, choice, wallet.connected && !isWrongNetwork)}
+                  isVoting={votingId === p.id}
                 />
               ))}
             </div>
@@ -132,7 +141,13 @@ export default function ExplorePage() {
       </div>
 
       {showWalletModal && (
-        <ConnectWalletModal onConnect={() => { connect(); setShowWalletModal(false); }} onClose={() => setShowWalletModal(false)} />
+        <ConnectWalletModal
+          onConnect={handleConnectConfirm}
+          onClose={() => setShowWalletModal(false)}
+          isConnecting={isConnecting}
+          connectingWallet={connectingWallet}
+          discoveredProviders={discoveredProviders}
+        />
       )}
     </main>
   );

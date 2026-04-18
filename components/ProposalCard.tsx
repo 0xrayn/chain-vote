@@ -1,13 +1,14 @@
 "use client";
 import { useState } from "react";
-import { Clock, User, CheckCircle, Lock } from "lucide-react";
+import { Clock, User, CheckCircle, Lock, Loader2 } from "lucide-react";
 import { Proposal, VoteChoice } from "@/types";
 
 interface ProposalCardProps {
   proposal: Proposal;
   myVote?: VoteChoice;
-  onVote: (id: string, choice: VoteChoice) => void;
+  onVote: (id: string, choice: VoteChoice) => Promise<boolean> | boolean;
   connected: boolean;
+  isVoting?: boolean;
 }
 
 const STATUS_CFG: Record<string, { color: string; bg: string; border: string; label: string }> = {
@@ -20,13 +21,15 @@ function pct(v: number, t: number) {
   return t === 0 ? 0 : Math.round((v / t) * 100);
 }
 
-export default function ProposalCard({ proposal: p, myVote, onVote, connected }: ProposalCardProps) {
+export default function ProposalCard({ proposal: p, myVote, onVote, connected, isVoting = false }: ProposalCardProps) {
   const [hoveredVote, setHoveredVote] = useState<VoteChoice | null>(null);
-  const st = STATUS_CFG[p.status];
+  const [localVoting, setLocalVoting] = useState(false);
+
+  const st = STATUS_CFG[p.status] ?? STATUS_CFG.pending;
   const yp = pct(p.yes, p.total);
   const np = pct(p.no, p.total);
   const ap = pct(p.abstain, p.total);
-  const canVote = p.status === "active" && !myVote && connected;
+  const canVote = p.status === "active" && !myVote && connected && !isVoting && !localVoting;
 
   const voteOpts: { key: VoteChoice; label: string; pct: number; count: number; color: string }[] = [
     { key: "yes", label: "FOR", pct: yp, count: p.yes, color: "var(--neon)" },
@@ -34,21 +37,33 @@ export default function ProposalCard({ proposal: p, myVote, onVote, connected }:
     { key: "abstain", label: "ABSTAIN", pct: ap, count: p.abstain, color: "var(--muted)" },
   ];
 
+  const handleVote = async (choice: VoteChoice) => {
+    if (!canVote) return;
+    setLocalVoting(true);
+    try {
+      await onVote(p.id, choice);
+    } finally {
+      setLocalVoting(false);
+    }
+  };
+
+  const quorumPct = p.quorum > 0 ? Math.min(100, Math.round((p.total / p.quorum) * 100)) : 0;
+  const quorumMet = p.total >= p.quorum;
+
   return (
     <div
       className="relative rounded-2xl p-6 flex flex-col gap-0 card-hover overflow-hidden"
-      style={{ background: "var(--surface)", border: "1px solid var(--border)", minHeight: "320px" }}
+      style={{ background: "var(--surface)", border: "1px solid var(--border)", minHeight: "340px" }}
     >
+      {/* Top glow line */}
       <div
-        className="absolute top-0 left-0 right-0 h-px opacity-0 transition-opacity duration-300"
+        className="absolute top-0 left-0 right-0 h-px opacity-0 transition-opacity duration-300 group-hover:opacity-100"
         style={{ background: "linear-gradient(90deg,transparent,var(--neon2),transparent)" }}
       />
 
+      {/* Header */}
       <div className="flex items-start justify-between gap-3 mb-4">
-        <span
-          className="text-xs tracking-widest"
-          style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}
-        >
+        <span className="text-xs tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}>
           {p.id}
         </span>
         <span
@@ -71,7 +86,8 @@ export default function ProposalCard({ proposal: p, myVote, onVote, connected }:
         {p.description}
       </p>
 
-      <div className="flex flex-col gap-2 mb-5">
+      {/* Vote options */}
+      <div className="flex flex-col gap-2 mb-4">
         {voteOpts.map((opt) => {
           const isSelected = myVote === opt.key;
           const isHovered = hoveredVote === opt.key;
@@ -80,10 +96,15 @@ export default function ProposalCard({ proposal: p, myVote, onVote, connected }:
               key={opt.key}
               className="relative rounded-lg overflow-hidden"
               style={{ cursor: canVote ? "pointer" : "default" }}
-              onClick={() => canVote && onVote(p.id, opt.key)}
+              onClick={() => canVote && handleVote(opt.key)}
               onMouseEnter={() => canVote && setHoveredVote(opt.key)}
               onMouseLeave={() => setHoveredVote(null)}
+              role={canVote ? "button" : undefined}
+              tabIndex={canVote ? 0 : undefined}
+              onKeyDown={(e) => e.key === "Enter" && canVote && handleVote(opt.key)}
+              aria-label={`Vote ${opt.label}`}
             >
+              {/* Progress fill */}
               <div
                 className="absolute inset-0 rounded-lg transition-all duration-700"
                 style={{ width: `${opt.pct}%`, background: `${opt.color}14` }}
@@ -96,9 +117,11 @@ export default function ProposalCard({ proposal: p, myVote, onVote, connected }:
                 }}
               >
                 <div className="flex items-center gap-2">
-                  {isSelected && (
+                  {isSelected ? (
                     <CheckCircle size={11} style={{ color: opt.color }} />
-                  )}
+                  ) : localVoting ? (
+                    <Loader2 size={11} className="animate-spin" style={{ color: "var(--muted)" }} />
+                  ) : null}
                   <span
                     className="text-xs tracking-widest"
                     style={{ fontFamily: "var(--font-mono)", color: isSelected ? opt.color : "var(--text2)" }}
@@ -123,6 +146,32 @@ export default function ProposalCard({ proposal: p, myVote, onVote, connected }:
         })}
       </div>
 
+      {/* Quorum bar */}
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-xs tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "var(--muted)", fontSize: "0.6rem" }}>
+            QUORUM
+          </span>
+          <span
+            className="text-xs tracking-widest font-bold"
+            style={{ fontFamily: "var(--font-mono)", color: quorumMet ? "var(--neon)" : "var(--muted)", fontSize: "0.6rem" }}
+          >
+            {p.total.toLocaleString()} / {p.quorum.toLocaleString()} {quorumMet ? "✓ MET" : ""}
+          </span>
+        </div>
+        <div className="h-1 rounded-full overflow-hidden" style={{ background: "var(--surface2)" }}>
+          <div
+            className="h-full rounded-full transition-all duration-1000"
+            style={{
+              width: `${quorumPct}%`,
+              background: quorumMet ? "var(--neon)" : "var(--neon2)",
+              boxShadow: quorumMet ? "0 0 6px var(--neon)" : "none",
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Footer */}
       <div
         className="flex items-center justify-between pt-4"
         style={{ borderTop: "1px solid var(--border)" }}
@@ -163,6 +212,11 @@ export default function ProposalCard({ proposal: p, myVote, onVote, connected }:
           <span className="text-xs" style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}>
             {p.status === "pending" ? "NOT STARTED" : "CLOSED"}
           </span>
+        ) : localVoting ? (
+          <div className="flex items-center gap-2">
+            <Loader2 size={11} className="animate-spin" style={{ color: "var(--neon)" }} />
+            <span className="text-xs" style={{ fontFamily: "var(--font-mono)", color: "var(--neon)" }}>SUBMITTING...</span>
+          </div>
         ) : null}
       </div>
     </div>

@@ -14,6 +14,7 @@ export interface Proposal {
   creator: string;
   createdAt: string;
   quorum: number;
+  txHash?: string; // optional Sepolia tx hash for on-chain proposals
 }
 
 export interface WalletState {
@@ -21,4 +22,14 @@ export interface WalletState {
   address: string | null;
   chainId: number | null;
   balance: string | null;
+}
+
+export interface WalletHook {
+  wallet: WalletState;
+  connect: () => Promise<void>;
+  disconnect: () => void;
+  shortAddress: string | null;
+  isConnecting: boolean;
+  isWrongNetwork: boolean;
+  switchToSepolia: () => Promise<void>;
 }

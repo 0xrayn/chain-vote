@@ -30,19 +30,22 @@ const STATS = [
 ];
 
 export default function Home() {
-  const { wallet, connect, disconnect, shortAddress } = useWallet();
-  const { proposals, myVotes, vote, createProposal } = useProposals();
+  const { wallet, connect, disconnect, shortAddress, isConnecting, isWrongNetwork, switchToSepolia, discoveredProviders } = useWallet();
+  const { proposals, myVotes, vote, createProposal, votingId } = useProposals();
   const [activeTab, setActiveTab] = useState<Tab>("proposals");
   const [showWalletModal, setShowWalletModal] = useState(false);
+  const [connectingWallet, setConnectingWallet] = useState("");
 
   const handleConnect = () => setShowWalletModal(true);
-  const handleConnectConfirm = () => {
-    connect();
+  const handleConnectConfirm = async (walletType: string) => {
     setShowWalletModal(false);
+    setConnectingWallet(walletType);
+    await connect(walletType);
+    setConnectingWallet("");
   };
 
-  const handleCreateProposal = (title: string, description: string) => {
-    const ok = createProposal(title, description, wallet.address ?? "0x000", wallet.connected);
+  const handleCreateProposal = async (title: string, description: string, duration: string) => {
+    const ok = await createProposal(title, description, wallet.address ?? "0x000", wallet.connected, duration);
     if (ok) setActiveTab("proposals");
     return ok;
   };
@@ -57,6 +60,9 @@ export default function Home() {
           shortAddress={shortAddress}
           onConnect={handleConnect}
           onDisconnect={disconnect}
+          isConnecting={isConnecting}
+          isWrongNetwork={isWrongNetwork}
+          onSwitchNetwork={switchToSepolia}
         />
 
         <div className="flex-1">
@@ -103,10 +109,7 @@ export default function Home() {
                       {stat.change}
                     </span>
                   </div>
-                  <div
-                    className="text-2xl font-extrabold mb-0.5"
-                    style={{ color: "var(--text)" }}
-                  >
+                  <div className="text-2xl font-extrabold mb-0.5" style={{ color: "var(--text)" }}>
                     {stat.value}
                   </div>
                   <div
@@ -174,7 +177,7 @@ export default function Home() {
             })}
           </div>
 
-          {/* Tab content with animated transitions */}
+          {/* Tab content */}
           <div className="max-w-6xl mx-auto px-3 sm:px-4 pb-4">
             {activeTab === "proposals" && (
               <div className="animate-scaleIn">
@@ -201,8 +204,9 @@ export default function Home() {
                         <ProposalCard
                           proposal={p}
                           myVote={myVotes[p.id]}
-                          connected={wallet.connected}
-                          onVote={(id, choice) => vote(id, choice, wallet.connected)}
+                          connected={wallet.connected && !isWrongNetwork}
+                          onVote={(id, choice) => vote(id, choice, wallet.connected && !isWrongNetwork)}
+                          isVoting={votingId === p.id}
                         />
                       </div>
                     ))}
@@ -213,7 +217,10 @@ export default function Home() {
 
             {activeTab === "create" && (
               <div className="animate-scaleIn">
-                <CreateProposal onSubmit={handleCreateProposal} connected={wallet.connected} />
+                <CreateProposal
+                  onSubmit={handleCreateProposal}
+                  connected={wallet.connected && !isWrongNetwork}
+                />
               </div>
             )}
 
@@ -232,6 +239,9 @@ export default function Home() {
         <ConnectWalletModal
           onConnect={handleConnectConfirm}
           onClose={() => setShowWalletModal(false)}
+          isConnecting={isConnecting}
+          connectingWallet={connectingWallet}
+          discoveredProviders={discoveredProviders}
         />
       )}
     </main>
