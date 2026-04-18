@@ -1,14 +1,49 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Proposal, VoteChoice } from "@/types";
 import { MOCK_PROPOSALS } from "@/lib/data";
 import { toast } from "sonner";
 
+const STORAGE_KEY = "chainvotes_proposals";
+const VOTES_KEY = "chainvotes_myvotes";
+
+// FIX: Load proposals dari localStorage agar tidak hilang saat refresh
+function loadProposals(): Proposal[] {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) return JSON.parse(stored) as Proposal[];
+  } catch { /* ignore */ }
+  return MOCK_PROPOSALS;
+}
+
+function saveProposals(proposals: Proposal[]) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(proposals)); } catch { /* ignore */ }
+}
+
+function loadMyVotes(): Record<string, VoteChoice> {
+  try {
+    const stored = localStorage.getItem(VOTES_KEY);
+    if (stored) return JSON.parse(stored) as Record<string, VoteChoice>;
+  } catch { /* ignore */ }
+  return {};
+}
+
+function saveMyVotes(votes: Record<string, VoteChoice>) {
+  try { localStorage.setItem(VOTES_KEY, JSON.stringify(votes)); } catch { /* ignore */ }
+}
+
 export function useProposals() {
   const [proposals, setProposals] = useState<Proposal[]>(MOCK_PROPOSALS);
-  // Map: proposalId -> VoteChoice (per session, since we're not using a real contract)
   const [myVotes, setMyVotes] = useState<Record<string, VoteChoice>>({});
   const [votingId, setVotingId] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+
+  // FIX: Hydrate dari localStorage setelah mount (aman untuk SSR)
+  useEffect(() => {
+    setProposals(loadProposals());
+    setMyVotes(loadMyVotes());
+    setHydrated(true);
+  }, []);
 
   const vote = useCallback(
     async (id: string, choice: VoteChoice, connected: boolean): Promise<boolean> => {
@@ -30,22 +65,22 @@ export function useProposals() {
         return false;
       }
 
-      // Simulate tx submission (replace with actual contract call)
       setVotingId(id);
       try {
-        await new Promise((r) => setTimeout(r, 1200)); // simulate tx delay
+        await new Promise((r) => setTimeout(r, 1200));
 
-        setProposals((prev) =>
-          prev.map((p) => {
-            if (p.id !== id) return p;
-            return {
-              ...p,
-              [choice]: p[choice] + 1,
-              total: p.total + 1,
-            };
-          })
-        );
-        setMyVotes((prev) => ({ ...prev, [id]: choice }));
+        const updatedProposals = proposals.map((p) => {
+          if (p.id !== id) return p;
+          return { ...p, [choice]: p[choice] + 1, total: p.total + 1 };
+        });
+        const updatedVotes = { ...myVotes, [id]: choice };
+
+        setProposals(updatedProposals);
+        setMyVotes(updatedVotes);
+
+        // FIX: Persist ke localStorage
+        saveProposals(updatedProposals);
+        saveMyVotes(updatedVotes);
 
         const choiceLabel = choice === "yes" ? "FOR ✅" : choice === "no" ? "AGAINST ❌" : "ABSTAIN";
         toast.success(`Vote cast: ${choiceLabel} on ${id}`);
@@ -89,14 +124,12 @@ export function useProposals() {
         return false;
       }
 
-      // Generate next VIP ID
       const existingNums = proposals
         .map((p) => parseInt(p.id.replace("VIP-", ""), 10))
         .filter((n) => !isNaN(n));
       const nextNum = existingNums.length > 0 ? Math.max(...existingNums) + 1 : 1;
       const newId = `VIP-${String(nextNum).padStart(3, "0")}`;
 
-      // Parse duration into days for display
       const daysMap: Record<string, string> = {
         "1 DAY": "Ends in 1d",
         "3 DAYS": "Ends in 3d",
@@ -119,12 +152,17 @@ export function useProposals() {
         quorum: 100,
       };
 
-      setProposals((prev) => [newProp, ...prev]);
+      const updatedProposals = [newProp, ...proposals];
+      setProposals(updatedProposals);
+
+      // FIX: Persist ke localStorage
+      saveProposals(updatedProposals);
+
       toast.success(`Proposal ${newId} deployed on Sepolia! 🎉`);
       return true;
     },
     [proposals]
   );
 
-  return { proposals, myVotes, vote, createProposal, votingId };
+  return { proposals, myVotes, vote, createProposal, votingId, hydrated };
 }

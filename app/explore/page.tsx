@@ -37,10 +37,11 @@ export default function ExplorePage() {
     return matchFilter && matchSearch;
   });
 
+  // FIX: Modal ditutup setelah connect selesai
   const handleConnectConfirm = async (walletType: string) => {
-    setShowWalletModal(false);
     setConnectingWallet(walletType);
     await connect(walletType);
+    setShowWalletModal(false);
     setConnectingWallet("");
   };
 
@@ -143,7 +144,7 @@ export default function ExplorePage() {
       {showWalletModal && (
         <ConnectWalletModal
           onConnect={handleConnectConfirm}
-          onClose={() => setShowWalletModal(false)}
+          onClose={() => { if (!isConnecting) setShowWalletModal(false); }}
           isConnecting={isConnecting}
           connectingWallet={connectingWallet}
           discoveredProviders={discoveredProviders}

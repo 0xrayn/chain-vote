@@ -22,13 +22,6 @@ const TABS: { key: Tab; label: string; icon: React.ReactNode; desc: string }[] =
   { key: "results", label: "RESULTS", icon: <BarChart3 size={13} />, desc: "Final counts" },
 ];
 
-const STATS = [
-  { label: "TOTAL PROPOSALS", value: "247", icon: <Activity size={14} />, color: "var(--neon)", change: "+12%" },
-  { label: "VOTERS", value: "8,412", icon: <Users size={14} />, color: "var(--neon2)", change: "+5.3%" },
-  { label: "VOTES CAST", value: "31,094", icon: <TrendingUp size={14} />, color: "var(--neon3)", change: "+18%" },
-  { label: "PASSED", value: "183", icon: <Zap size={14} />, color: "var(--warn)", change: "74.1%" },
-];
-
 export default function Home() {
   const { wallet, connect, disconnect, shortAddress, isConnecting, isWrongNetwork, switchToSepolia, discoveredProviders } = useWallet();
   const { proposals, myVotes, vote, createProposal, votingId } = useProposals();
@@ -37,10 +30,13 @@ export default function Home() {
   const [connectingWallet, setConnectingWallet] = useState("");
 
   const handleConnect = () => setShowWalletModal(true);
+
+  // FIX: Modal ditutup SETELAH connect selesai, bukan sebelumnya
+  // Ini memastikan user bisa melihat spinner dan approve MetaMask popup
   const handleConnectConfirm = async (walletType: string) => {
-    setShowWalletModal(false);
     setConnectingWallet(walletType);
     await connect(walletType);
+    setShowWalletModal(false);
     setConnectingWallet("");
   };
 
@@ -49,6 +45,20 @@ export default function Home() {
     if (ok) setActiveTab("proposals");
     return ok;
   };
+
+  // FIX: Stats dihitung dari data proposal nyata, bukan hardcoded
+  const totalVotes = proposals.reduce((a, p) => a + p.total, 0);
+  const activeCount = proposals.filter((p) => p.status === "active").length;
+  const endedCount = proposals.filter((p) => p.status === "ended").length;
+  const totalYes = proposals.reduce((a, p) => a + p.yes, 0);
+  const passRate = totalVotes > 0 ? Math.round((totalYes / totalVotes) * 100) : 0;
+
+  const STATS = [
+    { label: "TOTAL PROPOSALS", value: proposals.length.toString(), icon: <Activity size={14} />, color: "var(--neon)", change: `${activeCount} active` },
+    { label: "TOTAL VOTES", value: totalVotes.toLocaleString(), icon: <Users size={14} />, color: "var(--neon2)", change: `across ${proposals.length} props` },
+    { label: "CONCLUDED", value: endedCount.toString(), icon: <TrendingUp size={14} />, color: "var(--neon3)", change: `${proposals.filter(p => p.status === "pending").length} pending` },
+    { label: "PASS RATE", value: `${passRate}%`, icon: <Zap size={14} />, color: "var(--warn)", change: `of votes FOR` },
+  ];
 
   return (
     <main className="relative min-h-screen grid-bg" style={{ fontFamily: "var(--font-syne)" }}>
@@ -98,23 +108,26 @@ export default function Home() {
                   <div className="flex items-center justify-between mb-2">
                     <span style={{ color: stat.color }}>{stat.icon}</span>
                     <span
-                      className="text-xs px-2 py-0.5 rounded-full"
+                      className="text-xs px-1.5 py-0.5 rounded-full"
                       style={{
                         fontFamily: "var(--font-mono)",
-                        fontSize: "0.6rem",
                         color: stat.color,
-                        background: `${stat.color}15`,
+                        background: `${stat.color}12`,
+                        fontSize: "0.6rem",
                       }}
                     >
                       {stat.change}
                     </span>
                   </div>
-                  <div className="text-2xl font-extrabold mb-0.5" style={{ color: "var(--text)" }}>
+                  <div
+                    className="text-xl sm:text-2xl font-bold mb-0.5"
+                    style={{ fontFamily: "var(--font-mono)", color: stat.color }}
+                  >
                     {stat.value}
                   </div>
                   <div
-                    className="text-xs tracking-widest"
-                    style={{ fontFamily: "var(--font-mono)", color: "var(--muted)", fontSize: "0.6rem" }}
+                    className="tracking-widest"
+                    style={{ fontFamily: "var(--font-mono)", color: "var(--muted)", fontSize: "0.55rem" }}
                   >
                     {stat.label}
                   </div>
@@ -123,58 +136,58 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Tabs */}
-          <div className="flex justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 mb-6 sm:mb-8 flex-wrap">
-            {TABS.map((tab) => {
-              const isActive = activeTab === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className="relative flex items-center gap-2 px-3 sm:px-5 py-2 sm:py-3 rounded-xl text-xs tracking-widest overflow-hidden"
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    border: isActive ? "1px solid var(--neon2)" : "1px solid var(--border)",
-                    color: isActive ? "var(--neon2)" : "var(--muted)",
-                    background: isActive ? "rgba(0,212,255,0.09)" : "var(--surface)",
-                    boxShadow: isActive ? "0 0 24px rgba(0,212,255,0.15), inset 0 0 12px rgba(0,212,255,0.04)" : "none",
-                    transform: isActive ? "translateY(-2px)" : "translateY(0)",
-                    transition: "all 0.25s cubic-bezier(0.34,1.56,0.64,1)",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive) {
-                      const el = e.currentTarget as HTMLElement;
-                      el.style.color = "var(--text)";
-                      el.style.borderColor = "var(--border2)";
-                      el.style.transform = "translateY(-1px)";
-                      el.style.boxShadow = "0 4px 16px rgba(0,0,0,0.2)";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) {
-                      const el = e.currentTarget as HTMLElement;
-                      el.style.color = "var(--muted)";
-                      el.style.borderColor = "var(--border)";
-                      el.style.transform = "translateY(0)";
-                      el.style.boxShadow = "none";
-                    }
-                  }}
-                >
-                  {isActive && (
-                    <span
-                      className="absolute inset-0 rounded-xl pointer-events-none"
-                      style={{
-                        background: "linear-gradient(135deg, rgba(0,212,255,0.06) 0%, rgba(0,245,160,0.03) 100%)",
-                      }}
-                    />
-                  )}
-                  <span className="relative flex items-center gap-2">
-                    {tab.icon}
-                    <span className="hidden sm:inline">{tab.label}</span>
-                  </span>
-                </button>
-              );
-            })}
+          {/* Tab bar */}
+          <div className="max-w-6xl mx-auto px-3 sm:px-4 mb-5">
+            <div className="flex items-center gap-1.5 sm:gap-2 p-1 rounded-xl w-fit" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+              {TABS.map((tab) => {
+                const isActive = activeTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key)}
+                    className="relative px-3 sm:px-5 py-2 rounded-lg text-xs tracking-widest transition-all duration-200"
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      color: isActive ? "var(--neon2)" : "var(--muted)",
+                      border: isActive ? "1px solid var(--neon2)" : "1px solid transparent",
+                      background: isActive ? "rgba(0,212,255,0.07)" : "transparent",
+                      transform: isActive ? "none" : "none",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) {
+                        const el = e.currentTarget as HTMLElement;
+                        el.style.color = "var(--text2)";
+                        el.style.borderColor = "var(--border2)";
+                        el.style.transform = "translateY(-1px)";
+                        el.style.boxShadow = "0 4px 16px rgba(0,0,0,0.2)";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) {
+                        const el = e.currentTarget as HTMLElement;
+                        el.style.color = "var(--muted)";
+                        el.style.borderColor = "transparent";
+                        el.style.transform = "translateY(0)";
+                        el.style.boxShadow = "none";
+                      }
+                    }}
+                  >
+                    {isActive && (
+                      <span
+                        className="absolute inset-0 rounded-xl pointer-events-none"
+                        style={{
+                          background: "linear-gradient(135deg, rgba(0,212,255,0.06) 0%, rgba(0,245,160,0.03) 100%)",
+                        }}
+                      />
+                    )}
+                    <span className="relative flex items-center gap-2">
+                      {tab.icon}
+                      <span className="hidden sm:inline">{tab.label}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Tab content */}
@@ -238,7 +251,9 @@ export default function Home() {
       {showWalletModal && (
         <ConnectWalletModal
           onConnect={handleConnectConfirm}
-          onClose={() => setShowWalletModal(false)}
+          onClose={() => {
+            if (!isConnecting) setShowWalletModal(false);
+          }}
           isConnecting={isConnecting}
           connectingWallet={connectingWallet}
           discoveredProviders={discoveredProviders}

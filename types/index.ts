@@ -14,7 +14,7 @@ export interface Proposal {
   creator: string;
   createdAt: string;
   quorum: number;
-  txHash?: string; // optional Sepolia tx hash for on-chain proposals
+  txHash?: string;
 }
 
 export interface WalletState {
@@ -24,9 +24,10 @@ export interface WalletState {
   balance: string | null;
 }
 
+// FIX: WalletHook interface sekarang sinkron dengan implementasi useWallet
 export interface WalletHook {
   wallet: WalletState;
-  connect: () => Promise<void>;
+  connect: (walletType?: string) => Promise<void>;
   disconnect: () => void;
   shortAddress: string | null;
   isConnecting: boolean;
