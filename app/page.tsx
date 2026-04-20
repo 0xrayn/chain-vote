@@ -24,7 +24,7 @@ const TABS: { key: Tab; label: string; icon: React.ReactNode; desc: string }[] =
 
 export default function Home() {
   const { wallet, connect, disconnect, shortAddress, isConnecting, isWrongNetwork, switchToSepolia, discoveredProviders } = useWallet();
-  const { proposals, myVotes, vote, createProposal, votingId } = useProposals();
+  const { proposals, myVotes, vote, createProposal, votingId, isOnChain } = useProposals(wallet.address);
   const [activeTab, setActiveTab] = useState<Tab>("proposals");
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [connectingWallet, setConnectingWallet] = useState("");

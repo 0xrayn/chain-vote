@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "compile": "hardhat compile",
+    "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia",
+    "deploy:local": "hardhat run scripts/deploy.ts --network hardhat",
+    "verify": "hardhat verify --network sepolia",
+    "node": "hardhat node"
   },
   "dependencies": {
     "next": "^15.2.0",
@@ -34,6 +39,10 @@
     "@types/react-dom": "^19.2.0",
     "tailwindcss": "^4",
     "@tailwindcss/postcss": "^4",
-    "postcss": "^8"
+    "postcss": "^8",
+    "hardhat": "^2.22.0",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "dotenv": "^16.4.5",
+    "ts-node": "^10.9.2"
   }
 }
