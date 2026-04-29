@@ -11,6 +11,7 @@ import CreateProposal from "@/components/CreateProposal";
 import Results from "@/components/Results";
 import Footer from "@/components/Footer";
 import ConnectWalletModal from "@/components/ConnectWalletModal";
+import { ProposalGridSkeleton } from "@/components/Skeleton";
 
 const ThreeBackground = dynamic(() => import("@/components/ThreeBackground"), { ssr: false });
 
@@ -24,7 +25,7 @@ const TABS: { key: Tab; label: string; icon: React.ReactNode; desc: string }[] =
 
 export default function Home() {
   const { wallet, connect, disconnect, shortAddress, isConnecting, isWrongNetwork, switchToSepolia, discoveredProviders } = useWallet();
-  const { proposals, myVotes, vote, createProposal, votingId, isOnChain } = useProposals(wallet.address);
+  const { proposals, myVotes, vote, createProposal, votingId, isOnChain, isLoading } = useProposals(wallet.address);
   const [activeTab, setActiveTab] = useState<Tab>("proposals");
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [connectingWallet, setConnectingWallet] = useState("");
@@ -204,7 +205,9 @@ export default function Home() {
           <div className="max-w-6xl mx-auto px-3 sm:px-4 pb-4">
             {activeTab === "proposals" && (
               <div className="animate-scaleIn">
-                {proposals.length === 0 ? (
+                {isLoading ? (
+                  <ProposalGridSkeleton count={6} />
+                ) : proposals.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-20 gap-4">
                     <div
                       className="w-16 h-16 rounded-2xl flex items-center justify-center animate-float"
@@ -264,6 +267,7 @@ export default function Home() {
           onClose={() => {
             if (!isConnecting) setShowWalletModal(false);
           }}
+          onForceCancel={handleForceCancel}
           isConnecting={isConnecting}
           connectingWallet={connectingWallet}
           discoveredProviders={discoveredProviders}

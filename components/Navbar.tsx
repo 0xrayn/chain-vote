@@ -2,7 +2,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Wallet, Zap, Activity, Sun, Moon, Menu, X, AlertTriangle, Loader2 } from "lucide-react";
+import { Wallet, Zap, Activity, Sun, Moon, Menu, X, AlertTriangle, Loader2, User } from "lucide-react";
+import { toast } from "sonner";
 import { WalletState } from "@/types";
 import { useTheme } from "@/components/ThemeProvider";
 
@@ -21,6 +22,7 @@ const NAV_LINKS = [
   { href: "/explore", label: "EXPLORE" },
   { href: "/analytics", label: "ANALYTICS" },
   { href: "/docs", label: "DOCS" },
+  { href: "/profile", label: "PROFILE" },
 ];
 
 export default function Navbar({
@@ -51,6 +53,7 @@ export default function Navbar({
   const handleWalletAction = () => {
     if (isConnecting) return;
     if (isWrongNetwork && onSwitchNetwork) {
+      toast.info("Membuka permintaan ganti jaringan ke Sepolia di wallet kamu...", { duration: 4000 });
       onSwitchNetwork();
       return;
     }
@@ -84,7 +87,7 @@ export default function Navbar({
         transition: "box-shadow 0.3s ease",
       }}
     >
-      <div className="max-w-7xl mx-auto flex items-center px-3 sm:px-5 py-3 relative">
+      <div className="max-w-7xl mx-auto grid items-center px-3 sm:px-5 py-3" style={{ gridTemplateColumns: "auto 1fr auto", gap: "0.5rem" }}>
 
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 group flex-shrink-0" style={{ textDecoration: "none" }}>
@@ -123,8 +126,7 @@ export default function Navbar({
 
         {/* Nav Links - centered */}
         <div
-          className="hidden md:flex items-center gap-1"
-          style={{ position: "absolute", left: "50%", transform: "translateX(-50%)" }}
+          className="hidden md:flex items-center justify-center gap-1"
         >
           {NAV_LINKS.map((link) => {
             const isActive = pathname === link.href;

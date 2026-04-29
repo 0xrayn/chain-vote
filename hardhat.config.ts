@@ -1,10 +1,10 @@
-import { HardhatUserConfig } from "hardhat/config";
+import type { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
-import * as dotenv from "dotenv";
+import dotenv from "dotenv";
 dotenv.config({ path: ".env.local" });
 
-const PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY ?? "";
-const SEPOLIA_RPC  = process.env.SEPOLIA_RPC_URL ?? "https://rpc.sepolia.org";
+const PRIVATE_KEY   = process.env.DEPLOYER_PRIVATE_KEY ?? "";
+const SEPOLIA_RPC   = process.env.SEPOLIA_RPC_URL ?? "https://rpc.sepolia.org";
 const ETHERSCAN_KEY = process.env.ETHERSCAN_API_KEY ?? "";
 
 const config: HardhatUserConfig = {
@@ -19,6 +19,10 @@ const config: HardhatUserConfig = {
       url: SEPOLIA_RPC,
       accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
       chainId: 11155111,
+      timeout: 120000,
+      httpHeaders: {
+        "Content-Type": "application/json",
+      },
     },
     hardhat: {
       chainId: 31337,
@@ -32,6 +36,9 @@ const config: HardhatUserConfig = {
     tests:     "./test",
     cache:     "./cache",
     artifacts: "./artifacts",
+  },
+  mocha: {
+    timeout: 120000,
   },
 };
 

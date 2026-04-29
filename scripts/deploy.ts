@@ -1,6 +1,7 @@
-import { ethers } from "hardhat";
-import * as fs from "fs";
-import * as path from "path";
+import hre from "hardhat";
+const { ethers } = hre;
+import fs from "fs";
+import path from "path";
 
 async function main() {
   console.log("🚀 Deploying ChainVotes to Sepolia...\n");

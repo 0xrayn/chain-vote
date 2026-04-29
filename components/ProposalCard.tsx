@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import { Clock, User, CheckCircle, Lock, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Clock, User, CheckCircle, Lock, Loader2, ArrowUpRight } from "lucide-react";
 import { Proposal, VoteChoice } from "@/types";
 
 interface ProposalCardProps {
@@ -22,6 +23,7 @@ function pct(v: number, t: number) {
 }
 
 export default function ProposalCard({ proposal: p, myVote, onVote, connected, isVoting = false }: ProposalCardProps) {
+  const router = useRouter();
   const [hoveredVote, setHoveredVote] = useState<VoteChoice | null>(null);
   const [localVoting, setLocalVoting] = useState(false);
 
@@ -61,25 +63,30 @@ export default function ProposalCard({ proposal: p, myVote, onVote, connected, i
         style={{ background: "linear-gradient(90deg,transparent,var(--neon2),transparent)" }}
       />
 
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3 mb-4">
+      {/* Header — clickable to detail */}
+      <div
+        className="flex items-start justify-between gap-3 mb-4 cursor-pointer group/header"
+        onClick={() => router.push(`/proposal/${encodeURIComponent(p.id)}`)}
+      >
         <span className="text-xs tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}>
           {p.id}
         </span>
-        <span
-          className="text-xs px-2.5 py-1 rounded-full tracking-widest font-bold"
-          style={{
-            fontFamily: "var(--font-mono)",
-            color: st.color,
-            background: st.bg,
-            border: `1px solid ${st.border}`,
-          }}
-        >
-          {st.label}
-        </span>
+        <div className="flex items-center gap-2">
+          <span
+            className="text-xs px-2.5 py-1 rounded-full tracking-widest font-bold"
+            style={{ fontFamily: "var(--font-mono)", color: st.color, background: st.bg, border: `1px solid ${st.border}` }}
+          >
+            {st.label}
+          </span>
+          <ArrowUpRight size={12} className="opacity-0 group-hover/header:opacity-100 transition-opacity" style={{ color: "var(--muted)" }} />
+        </div>
       </div>
 
-      <h3 className="font-bold text-base leading-snug mb-2" style={{ color: "var(--text)" }}>
+      <h3
+        className="font-bold text-base leading-snug mb-2 cursor-pointer hover:opacity-80 transition-opacity"
+        style={{ color: "var(--text)" }}
+        onClick={() => router.push(`/proposal/${encodeURIComponent(p.id)}`)}
+      >
         {p.title}
       </h3>
       <p className="text-sm leading-relaxed mb-5 flex-1" style={{ color: "var(--text2)", fontSize: "0.82rem" }}>

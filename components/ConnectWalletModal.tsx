@@ -178,8 +178,8 @@ export default function ConnectWalletModal({
           >
             <Shield size={13} style={{ color: "var(--neon)", marginTop: "2px", flexShrink: 0 }} />
             <p className="text-xs leading-relaxed" style={{ color: "var(--text2)" }}>
-              Connecting to <span style={{ color: "var(--neon)" }}>Sepolia Testnet</span>.
-              No real funds needed. Verify the URL before signing.
+              App ini berjalan di <span style={{ color: "var(--neon)" }}>Sepolia Testnet</span> — uang percobaan, bukan uang sungguhan.
+              Setelah konek, klik <span style={{ color: "var(--warn)" }}>WRONG NETWORK</span> jika muncul untuk pindah jaringan.
             </p>
           </div>
 
@@ -191,8 +191,8 @@ export default function ConnectWalletModal({
             >
               <AlertTriangle size={13} style={{ color: "var(--warn)", marginTop: "2px", flexShrink: 0 }} />
               <p className="text-xs leading-relaxed" style={{ color: "var(--text2)" }}>
-                <span style={{ color: "var(--warn)" }}>No wallet detected.</span>{" "}
-                Install MetaMask or Bitget Wallet, then refresh the page.
+                <span style={{ color: "var(--warn)" }}>Wallet tidak terdeteksi.</span>{" "}
+                Install <strong>Bitget Wallet</strong> atau <strong>MetaMask</strong> di browser kamu, lalu refresh halaman ini.
               </p>
             </div>
           )}

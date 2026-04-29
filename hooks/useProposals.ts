@@ -78,12 +78,34 @@ export function useProposals(walletAddress?: string | null) {
         ];
 
       const now = BigInt(Math.floor(Date.now() / 1000));
+
+      // Load cached descriptions (getAllProposals doesn't return description)
+      let descCache: Record<string, string> = {};
+      try {
+        const stored = localStorage.getItem("chainvotes_descriptions");
+        if (stored) descCache = JSON.parse(stored);
+      } catch { /* ignore */ }
+
+      // Fetch descriptions for proposals we don't have cached yet
+      const newDescIds = ids.filter((id) => !descCache[String(id)]);
+      if (newDescIds.length > 0) {
+        await Promise.all(
+          newDescIds.map(async (id) => {
+            try {
+              const [,, desc] = await contract.getProposal(id) as [bigint, string, string, ...unknown[]];
+              descCache[String(id)] = desc;
+            } catch { /* ignore individual failures */ }
+          })
+        );
+        try { localStorage.setItem("chainvotes_descriptions", JSON.stringify(descCache)); } catch { /* ignore */ }
+      }
+
       const fetched: Proposal[] = ids.map((id, i) => {
         const remaining = endTimes[i] - now;
         return {
           id:          `VIP-${String(Number(id)).padStart(3, "0")}`,
           title:       titles[i],
-          description: "",
+          description: descCache[String(id)] ?? "",
           status:      statusFromCode(statuses[i]),
           yes:         Number(yesArr[i]),
           no:          Number(noArr[i]),
