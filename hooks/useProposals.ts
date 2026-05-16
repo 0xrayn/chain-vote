@@ -54,7 +54,7 @@ function saveMyVotes(v: Record<string, VoteChoice>) {
 }
 
 export function useProposals(walletAddress?: string | null) {
-  const [proposals,  setProposals]  = useState<Proposal[]>(MOCK_PROPOSALS);
+  const [proposals,  setProposals]  = useState<Proposal[]>([]);
   const [myVotes,    setMyVotes]    = useState<Record<string, VoteChoice>>({});
   const [votingId,   setVotingId]   = useState<string | null>(null);
   const [hydrated,   setHydrated]   = useState(false);
@@ -65,65 +65,24 @@ export function useProposals(walletAddress?: string | null) {
   const contractReady = Boolean(CONTRACT_ADDRESS);
 
   const fetchFromChain = useCallback(async (address?: string | null): Promise<boolean> => {
-    if (!contractReady || typeof window === "undefined") return false;
+    if (!contractReady) return false;
     try {
-      const eth = (window as any).ethereum;
-      if (!eth) return false;
-      const provider = new ethers.BrowserProvider(eth);
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+      // Fetch proposals dari API route (server-side, tidak ada CORS)
+      const res = await fetch("/api/proposals");
+      if (!res.ok) throw new Error(`API error ${res.status}`);
+      const data = await res.json();
+      const fetched: Proposal[] = data.proposals ?? [];
 
-      const [ids, titles, creators, yesArr, noArr, abstainArr, endTimes, statuses] =
-        await contract.getAllProposals() as [
-          bigint[], string[], string[], bigint[], bigint[], bigint[], bigint[], number[]
-        ];
-
-      const now = BigInt(Math.floor(Date.now() / 1000));
-
-      // Load cached descriptions (getAllProposals doesn't return description)
-      let descCache: Record<string, string> = {};
-      try {
-        const stored = localStorage.getItem("chainvotes_descriptions");
-        if (stored) descCache = JSON.parse(stored);
-      } catch { /* ignore */ }
-
-      // Fetch descriptions for proposals we don't have cached yet
-      const newDescIds = ids.filter((id) => !descCache[String(id)]);
-      if (newDescIds.length > 0) {
-        await Promise.all(
-          newDescIds.map(async (id) => {
-            try {
-              const [,, desc] = await contract.getProposal(id) as [bigint, string, string, ...unknown[]];
-              descCache[String(id)] = desc;
-            } catch { /* ignore individual failures */ }
-          })
-        );
-        try { localStorage.setItem("chainvotes_descriptions", JSON.stringify(descCache)); } catch { /* ignore */ }
-      }
-
-      const fetched: Proposal[] = ids.map((id, i) => {
-        const remaining = endTimes[i] - now;
-        return {
-          id:          `VIP-${String(Number(id)).padStart(3, "0")}`,
-          title:       titles[i],
-          description: descCache[String(id)] ?? "",
-          status:      statusFromCode(statuses[i]),
-          yes:         Number(yesArr[i]),
-          no:          Number(noArr[i]),
-          abstain:     Number(abstainArr[i]),
-          total:       Number(yesArr[i]) + Number(noArr[i]) + Number(abstainArr[i]),
-          ends:        secondsToLabel(remaining > 0n ? remaining : 0n),
-          creator:     `${creators[i].slice(0, 6)}...${creators[i].slice(-4)}`,
-          createdAt:   "",
-          quorum:      100,
-        };
-      });
-
-      setProposals(fetched.length > 0 ? fetched : MOCK_PROPOSALS);
+      setProposals(fetched);
       setIsOnChain(true);
 
-      if (address) {
+      // Fetch vote status per user kalau wallet sudah connect
+      if (address && typeof window !== "undefined" && (window as any).ethereum) {
+        const provider = new ethers.BrowserProvider((window as any).ethereum);
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
         const voteMap: Record<string, VoteChoice> = {};
         const choiceMap: Record<number, VoteChoice> = { 1: "yes", 2: "no", 3: "abstain" };
+        const ids = fetched.map((p) => BigInt(parseInt(p.id.replace("VIP-", ""), 10)));
         for (const id of ids) {
           const choiceNum = Number(await contract.getVote(address, id));
           if (choiceNum > 0) {
@@ -134,7 +93,7 @@ export function useProposals(walletAddress?: string | null) {
       }
       return true;
     } catch (err) {
-      console.warn("[useProposals] chain fetch failed, using localStorage:", err);
+      console.warn("[useProposals] fetch failed:", err);
       return false;
     }
   }, [contractReady]);
@@ -144,8 +103,8 @@ export function useProposals(walletAddress?: string | null) {
       setIsLoading(true);
       const ok = await fetchFromChain(walletAddress);
       if (!ok) {
-        setProposals(loadProposals());
-        setMyVotes(loadMyVotes());
+        setProposals([]);
+        setMyVotes({});
       }
       setHydrated(true);
       setIsLoading(false);
@@ -185,7 +144,15 @@ export function useProposals(walletAddress?: string | null) {
           await tx.wait();
 
           const choiceLabel = choice === "yes" ? "FOR ✅" : choice === "no" ? "AGAINST ❌" : "ABSTAIN";
-          toast.success(`Vote on-chain: ${choiceLabel} | Tx: ${tx.hash.slice(0,10)}…`);
+          const etherscanUrl = `https://sepolia.etherscan.io/tx/${tx.hash}`;
+          toast.success(`Vote on-chain: ${choiceLabel}`, {
+            description: `Tx: ${tx.hash.slice(0, 10)}… → ${etherscanUrl}`,
+            action: {
+              label: "Lihat di Etherscan →",
+              onClick: () => window.open(etherscanUrl, "_blank"),
+            },
+            duration: 8000,
+          });
 
           const updatedVotes = { ...myVotes, [id]: choice };
           setMyVotes(updatedVotes);
@@ -259,7 +226,15 @@ export function useProposals(walletAddress?: string | null) {
             } catch { /* not our event */ }
           }
 
-          toast.success(`Proposal ${newId} deployed on Sepolia! 🎉`);
+          const etherscanUrl = `https://sepolia.etherscan.io/tx/${tx.hash}`;
+          toast.success(`Proposal ${newId} live di Sepolia! 🎉`, {
+            description: `Tx: ${tx.hash.slice(0, 10)}…`,
+            action: {
+              label: "Lihat di Etherscan →",
+              onClick: () => window.open(etherscanUrl, "_blank"),
+            },
+            duration: 8000,
+          });
           await fetchFromChain(creator);
           return true;
         } else {
