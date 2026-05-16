@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-/// @title ChainVotes — Decentralized Governance on Sepolia
+/// @title ChainVotes Decentralized Governance on Sepolia
 /// @notice Proposal creation + on-chain voting (FOR / AGAINST / ABSTAIN)
 contract ChainVotes {
     // ─────────────────────── Types ───────────────────────

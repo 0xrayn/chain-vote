@@ -63,7 +63,7 @@ export default function ProposalCard({ proposal: p, myVote, onVote, connected, i
         style={{ background: "linear-gradient(90deg,transparent,var(--neon2),transparent)" }}
       />
 
-      {/* Header — clickable to detail */}
+      {/* Header  clickable to detail */}
       <div
         className="flex items-start justify-between gap-3 mb-4 cursor-pointer group/header"
         onClick={() => router.push(`/proposal/${encodeURIComponent(p.id)}`)}

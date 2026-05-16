@@ -34,7 +34,7 @@ export default function Home() {
 
   const handleConnect = () => setShowWalletModal(true);
 
-  // Modal ditutup setelah connect selesai — apapun hasilnya (sukses/cancel/error)
+  // Modal ditutup setelah connect selesai  apapun hasilnya (sukses/cancel/error)
   const handleConnectConfirm = async (walletType: string) => {
     setConnectingWallet(walletType);
     try {

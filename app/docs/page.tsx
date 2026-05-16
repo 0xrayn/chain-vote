@@ -209,7 +209,7 @@ export default function DocsPage() {
                 <div className="rounded-2xl p-6 animate-fadeIn" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
                   <h2 className="text-xl font-bold mb-4" style={{ color: "var(--text)" }}>Overview</h2>
                   <p className="text-sm leading-relaxed mb-4" style={{ color: "var(--text2)" }}>
-                    VoteChain is a decentralized governance platform built on Ethereum Sepolia testnet. It allows communities to create proposals, cast votes, and view results — all on-chain.
+                    VoteChain is a decentralized governance platform built on Ethereum Sepolia testnet. It allows communities to create proposals, cast votes, and view results all on-chain.
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
                     {[

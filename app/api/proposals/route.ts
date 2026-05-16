@@ -114,7 +114,7 @@ export async function GET() {
   }
 }
 
-// ── POST /api/proposals — invalidate cache after vote/create ─────────────────
+// ── POST /api/proposals  invalidate cache after vote/create ─────────────────
 export async function POST() {
   cachedPayload = null;
   cacheExpiresAt = 0;

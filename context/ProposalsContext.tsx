@@ -79,10 +79,10 @@ export function ProposalsProvider({ children }: { children: React.ReactNode }) {
       console.warn("[ProposalsContext] fetch failed:", err);
       return false;
     }
-  // Only contractReady in deps — walletAddress read via ref to avoid re-fetch on address change
+  // Only contractReady in deps  walletAddress read via ref to avoid re-fetch on address change
   }, [contractReady]);
 
-  // Initial fetch — runs once on mount only
+  // Initial fetch  runs once on mount only
   useEffect(() => {
     const init = async () => {
       setIsLoading(true);
@@ -93,7 +93,7 @@ export function ProposalsProvider({ children }: { children: React.ReactNode }) {
     };
     init();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // intentionally empty — fetch only on mount
+  }, []); // intentionally empty  fetch only on mount
 
   // Re-fetch votes when wallet connects/changes (not proposals)
   useEffect(() => {
@@ -118,7 +118,7 @@ export function ProposalsProvider({ children }: { children: React.ReactNode }) {
     fetchVotes();
   }, [walletAddress, isOnChain, contractReady]); // proposals intentionally omitted
 
-  // Polling — stable, never restarts because fetchFromChain deps are stable
+  // Polling  stable, never restarts because fetchFromChain deps are stable
   useEffect(() => {
     if (!isOnChain) return;
     pollRef.current = setInterval(() => fetchFromChain(null), 8_000);

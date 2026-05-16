@@ -17,13 +17,13 @@ const eslintConfig = defineConfig([
   ]),
   {
     rules: {
-      // Warnings only — tidak block build
+      // Warnings only  tidak block build
       "@typescript-eslint/no-unused-vars": "warn",
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-empty-object-type": "warn",
       "react-hooks/exhaustive-deps": "warn",
 
-      // False positives — pattern ini valid (setState dari external data / route change / localStorage)
+      // False positives  pattern ini valid (setState dari external data / route change / localStorage)
       "react-hooks/set-state-in-effect": "off",
     },
   },

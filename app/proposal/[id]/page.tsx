@@ -180,7 +180,7 @@ export default function ProposalDetailPage() {
                 <p className="leading-relaxed text-sm" style={{ color: "var(--text2)", lineHeight: 1.8 }}>
                   {proposal.description || (
                     <span style={{ color: "var(--muted)", fontStyle: "italic" }}>
-                      No description available — description is stored on-chain per proposal.
+                      No description available  description is stored on-chain per proposal.
                     </span>
                   )}
                 </p>
