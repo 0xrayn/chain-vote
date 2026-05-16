@@ -38,6 +38,13 @@ export function ProposalsProvider({ children }: { children: React.ReactNode }) {
   const [isLoading,     setIsLoading]     = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Use a ref for walletAddress so fetchFromChain doesn't need it in deps
+  const walletAddressRef = useRef<string | null>(null);
+
+  // Keep ref in sync without triggering re-renders or re-fetches
+  useEffect(() => {
+    walletAddressRef.current = walletAddress;
+  }, [walletAddress]);
 
   const contractReady = Boolean(CONTRACT_ADDRESS);
 
@@ -52,14 +59,15 @@ export function ProposalsProvider({ children }: { children: React.ReactNode }) {
       setProposals(fetched);
       setIsOnChain(true);
 
-      if (address && typeof window !== "undefined" && (window as any).ethereum) {
+      const resolvedAddress = address ?? walletAddressRef.current;
+      if (resolvedAddress && typeof window !== "undefined" && (window as any).ethereum) {
         const provider = new ethers.BrowserProvider((window as any).ethereum);
         const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
         const voteMap: Record<string, VoteChoice> = {};
         const choiceMap: Record<number, VoteChoice> = { 1: "yes", 2: "no", 3: "abstain" };
         const ids = fetched.map((p) => BigInt(parseInt(p.id.replace("VIP-", ""), 10)));
         for (const id of ids) {
-          const choiceNum = Number(await contract.getVote(address, id));
+          const choiceNum = Number(await contract.getVote(resolvedAddress, id));
           if (choiceNum > 0) {
             voteMap[`VIP-${String(Number(id)).padStart(3, "0")}`] = choiceMap[choiceNum] ?? "abstain";
           }
@@ -71,26 +79,51 @@ export function ProposalsProvider({ children }: { children: React.ReactNode }) {
       console.warn("[ProposalsContext] fetch failed:", err);
       return false;
     }
+  // Only contractReady in deps — walletAddress read via ref to avoid re-fetch on address change
   }, [contractReady]);
 
-  // Initial fetch
+  // Initial fetch — runs once on mount only
   useEffect(() => {
     const init = async () => {
       setIsLoading(true);
-      const ok = await fetchFromChain(walletAddress);
+      const ok = await fetchFromChain(null);
       if (!ok) { setProposals([]); setMyVotes({}); }
       setHydrated(true);
       setIsLoading(false);
     };
     init();
-  }, [walletAddress, fetchFromChain]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally empty — fetch only on mount
 
-  // Polling — single interval for the whole app
+  // Re-fetch votes when wallet connects/changes (not proposals)
+  useEffect(() => {
+    if (!walletAddress || !isOnChain) return;
+    const fetchVotes = async () => {
+      if (!contractReady || typeof window === "undefined" || !(window as any).ethereum) return;
+      try {
+        const provider = new ethers.BrowserProvider((window as any).ethereum);
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+        const voteMap: Record<string, VoteChoice> = {};
+        const choiceMap: Record<number, VoteChoice> = { 1: "yes", 2: "no", 3: "abstain" };
+        const ids = proposals.map((p) => BigInt(parseInt(p.id.replace("VIP-", ""), 10)));
+        for (const id of ids) {
+          const choiceNum = Number(await contract.getVote(walletAddress, id));
+          if (choiceNum > 0) {
+            voteMap[`VIP-${String(Number(id)).padStart(3, "0")}`] = choiceMap[choiceNum] ?? "abstain";
+          }
+        }
+        setMyVotes(voteMap);
+      } catch { /* silent */ }
+    };
+    fetchVotes();
+  }, [walletAddress, isOnChain, contractReady]); // proposals intentionally omitted
+
+  // Polling — stable, never restarts because fetchFromChain deps are stable
   useEffect(() => {
     if (!isOnChain) return;
-    pollRef.current = setInterval(() => fetchFromChain(walletAddress), 8_000);
+    pollRef.current = setInterval(() => fetchFromChain(null), 8_000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [isOnChain, fetchFromChain, walletAddress]);
+  }, [isOnChain, fetchFromChain]);
 
   // ── vote ──────────────────────────────────────────────────────────────────
   const vote = useCallback(async (id: string, choice: VoteChoice, connected: boolean): Promise<boolean> => {
@@ -123,7 +156,7 @@ export function ProposalsProvider({ children }: { children: React.ReactNode }) {
         });
 
         setMyVotes((prev) => ({ ...prev, [id]: choice }));
-        await fetchFromChain(walletAddress);
+        await fetchFromChain(null);
         return true;
       } else {
         await new Promise((r) => setTimeout(r, 1200));
@@ -145,7 +178,7 @@ export function ProposalsProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setVotingId(null);
     }
-  }, [myVotes, proposals, contractReady, fetchFromChain, walletAddress]);
+  }, [myVotes, proposals, contractReady, fetchFromChain]);
 
   // ── createProposal ────────────────────────────────────────────────────────
   const createProposal = useCallback(async (
@@ -220,7 +253,7 @@ export function ProposalsProvider({ children }: { children: React.ReactNode }) {
     <ProposalsContext.Provider value={{
       proposals, myVotes, votingId, hydrated, isOnChain, isLoading,
       vote, createProposal,
-      refresh: () => fetchFromChain(walletAddress),
+      refresh: () => fetchFromChain(null),
       setWalletAddress,
     }}>
       {children}

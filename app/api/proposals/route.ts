@@ -3,10 +3,21 @@ import { ethers } from "ethers";
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from "@/lib/contract";
 
 // ─── In-memory cache (10-second TTL) ─────────────────────────────────────────
-// Mencegah spam ke Alchemy RPC — tanpa cache, 1000 req/detik = 1000 RPC calls.
 let cachedPayload: string | null = null;
 let cacheExpiresAt = 0;
 const CACHE_TTL_MS = 10_000;
+
+// ─── Singleton provider (reused across requests, not recreated every call) ───
+let _provider: ethers.JsonRpcProvider | null = null;
+function getProvider(): ethers.JsonRpcProvider {
+  const rpcUrl = process.env.SEPOLIA_RPC_URL ?? "https://rpc2.sepolia.org";
+  if (!_provider) {
+    _provider = new ethers.JsonRpcProvider(rpcUrl, undefined, {
+      staticNetwork: true, // skip eth_chainId on every call
+    });
+  }
+  return _provider;
+}
 
 function secondsToLabel(remaining: bigint): string {
   if (remaining <= 0n) return "ENDED";
@@ -18,12 +29,11 @@ function secondsToLabel(remaining: bigint): string {
   return `${mins}m`;
 }
 
-// FIX: tambah explicit case untuk code === 1 (Active)
 function statusFromCode(code: number): string {
   if (code === 0) return "pending";
   if (code === 1) return "active";
   if (code === 2) return "ended";
-  return "active"; // safe default
+  return "active";
 }
 
 export async function GET() {
@@ -44,9 +54,7 @@ export async function GET() {
   }
 
   try {
-    // Hanya gunakan SEPOLIA_RPC_URL (server-side only) — jangan pakai NEXT_PUBLIC_
-    const rpcUrl = process.env.SEPOLIA_RPC_URL ?? "https://rpc2.sepolia.org";
-    const provider = new ethers.JsonRpcProvider(rpcUrl);
+    const provider = getProvider();
     const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
 
     const [ids, titles, creators, yesArr, noArr, abstainArr, endTimes, statuses] =
@@ -56,7 +64,7 @@ export async function GET() {
 
     const now = BigInt(Math.floor(Date.now() / 1000));
 
-    // Parallel fetch descriptions (Promise.all = concurrent, bukan sequential)
+    // Fetch all descriptions in parallel
     const descriptions = await Promise.all(
       ids.map(async (id) => {
         try {
@@ -87,8 +95,6 @@ export async function GET() {
     });
 
     const body = JSON.stringify({ proposals });
-
-    // Simpan ke cache
     cachedPayload = body;
     cacheExpiresAt = Date.now() + CACHE_TTL_MS;
 
@@ -101,14 +107,14 @@ export async function GET() {
       },
     });
   } catch (err: any) {
+    // Reset provider on error so next request gets a fresh one
+    _provider = null;
     console.error("[API /proposals] error:", err?.message);
     return NextResponse.json({ error: err?.message ?? "Failed to fetch" }, { status: 500 });
   }
 }
 
-// ── POST /api/proposals — invalidate cache setelah vote / create proposal ────
-// Dipanggil client setelah tx.wait() selesai agar fetch berikutnya
-// langsung hit RPC bukan cache lama.
+// ── POST /api/proposals — invalidate cache after vote/create ─────────────────
 export async function POST() {
   cachedPayload = null;
   cacheExpiresAt = 0;

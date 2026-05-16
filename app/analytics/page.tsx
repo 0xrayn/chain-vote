@@ -1,6 +1,6 @@
 "use client";
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BarChart3, TrendingUp, Users, Activity, Zap, ArrowUpRight } from "lucide-react";
 import { useWallet } from "@/hooks/useWallet";
 import { useProposals } from "@/hooks/useProposals";
