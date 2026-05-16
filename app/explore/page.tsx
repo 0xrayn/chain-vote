@@ -21,9 +21,11 @@ const FILTERS: { key: ProposalStatus | "all"; label: string }[] = [
 
 export default function ExplorePage() {
   const { wallet, connect, disconnect, shortAddress, isConnecting, isWrongNetwork, switchToSepolia, discoveredProviders } = useWallet();
-  const { proposals, myVotes, vote, votingId } = useProposals();
+  const { proposals, myVotes, vote, votingId , setWalletAddress } = useProposals();
   const [filter, setFilter] = useState<ProposalStatus | "all">("all");
   const [search, setSearch] = useState("");
+  useEffect(() => { setWalletAddress(wallet.address ?? null); }, [wallet.address, setWalletAddress]);
+
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [connectingWallet, setConnectingWallet] = useState("");
 

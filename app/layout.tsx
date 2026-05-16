@@ -3,6 +3,7 @@ import { Syne, Space_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { ProposalsProvider } from "@/context/ProposalsContext";
 
 const syne = Syne({
   subsets: ["latin"],
@@ -29,6 +30,7 @@ export default function RootLayout({
     <html lang="en" className={`${syne.variable} ${spaceMono.variable}`} data-scroll-behavior="smooth">
       <body className="antialiased">
         <ThemeProvider>
+          <ProposalsProvider>
           {children}
           <Toaster
             position="bottom-right"
@@ -46,6 +48,7 @@ export default function RootLayout({
               },
             }}
           />
+          </ProposalsProvider>
         </ThemeProvider>
       </body>
     </html>

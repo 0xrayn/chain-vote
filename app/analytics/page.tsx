@@ -45,7 +45,9 @@ function SimpleBar({ label, pct, color }: { label: string; pct: number; color: s
 
 export default function AnalyticsPage() {
   const { wallet, connect, disconnect, shortAddress, isConnecting, isWrongNetwork, switchToSepolia, discoveredProviders } = useWallet();
-  const { proposals } = useProposals();
+  const { proposals , setWalletAddress } = useProposals();
+  useEffect(() => { setWalletAddress(wallet.address ?? null); }, [wallet.address, setWalletAddress]);
+
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [connectingWallet, setConnectingWallet] = useState("");
 

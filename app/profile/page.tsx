@@ -43,7 +43,9 @@ function CopyBtn({ text }: { text: string }) {
 export default function ProfilePage() {
   const router = useRouter();
   const { wallet, connect, disconnect, shortAddress, isConnecting, isWrongNetwork, switchToSepolia, discoveredProviders } = useWallet();
-  const { proposals, myVotes, isLoading } = useProposals(wallet.address);
+  const { proposals, myVotes, isLoading , setWalletAddress } = useProposals();
+  useEffect(() => { setWalletAddress(wallet.address ?? null); }, [wallet.address, setWalletAddress]);
+
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [connectingWallet, setConnectingWallet] = useState("");
 

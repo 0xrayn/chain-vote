@@ -70,7 +70,9 @@ export default function ProposalDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { wallet, connect, disconnect, shortAddress, isConnecting, isWrongNetwork, switchToSepolia, discoveredProviders } = useWallet();
-  const { proposals, myVotes, vote, votingId } = useProposals(wallet.address);
+  const { proposals, myVotes, vote, votingId , setWalletAddress } = useProposals();
+  useEffect(() => { setWalletAddress(wallet.address ?? null); }, [wallet.address, setWalletAddress]);
+
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [connectingWallet, setConnectingWallet] = useState("");
   const [localVoting, setLocalVoting] = useState(false);
