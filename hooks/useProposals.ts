@@ -146,9 +146,8 @@ export function useProposals(walletAddress?: string | null) {
           const choiceLabel = choice === "yes" ? "FOR ✅" : choice === "no" ? "AGAINST ❌" : "ABSTAIN";
           const etherscanUrl = `https://sepolia.etherscan.io/tx/${tx.hash}`;
           toast.success(`Vote on-chain: ${choiceLabel}`, {
-            description: `Tx: ${tx.hash.slice(0, 10)}… → ${etherscanUrl}`,
             action: {
-              label: "Lihat di Etherscan →",
+              label: "Etherscan →",
               onClick: () => window.open(etherscanUrl, "_blank"),
             },
             duration: 8000,
@@ -228,9 +227,8 @@ export function useProposals(walletAddress?: string | null) {
 
           const etherscanUrl = `https://sepolia.etherscan.io/tx/${tx.hash}`;
           toast.success(`Proposal ${newId} live di Sepolia! 🎉`, {
-            description: `Tx: ${tx.hash.slice(0, 10)}…`,
             action: {
-              label: "Lihat di Etherscan →",
+              label: "Etherscan →",
               onClick: () => window.open(etherscanUrl, "_blank"),
             },
             duration: 8000,

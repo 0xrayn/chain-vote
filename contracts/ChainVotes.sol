@@ -48,6 +48,7 @@ contract ChainVotes {
     error ProposalNotActive(uint256 id);
     error AlreadyVoted(uint256 id, address voter);
     error InvalidDuration();
+    error DurationTooLong();
     error TitleTooShort();
     error DescriptionTooShort();
 
@@ -67,6 +68,7 @@ contract ChainVotes {
         if (bytes(_title).length < 10)       revert TitleTooShort();
         if (bytes(_description).length < 20) revert DescriptionTooShort();
         if (_durationSec == 0)               revert InvalidDuration();
+        if (_durationSec > 30 days)          revert DurationTooLong();
 
         proposalCount++;
         uint256 id = proposalCount;

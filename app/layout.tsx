@@ -32,6 +32,7 @@ export default function RootLayout({
           {children}
           <Toaster
             position="bottom-right"
+            expand={false}
             toastOptions={{
               style: {
                 background: "var(--surface)",
@@ -40,6 +41,8 @@ export default function RootLayout({
                 fontFamily: "var(--font-mono)",
                 fontSize: "0.78rem",
                 letterSpacing: "0.05em",
+                width: "360px",
+                maxWidth: "360px",
               },
             }}
           />

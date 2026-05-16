@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import { ethers } from "ethers";
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from "@/lib/contract";
 
+// ─── In-memory cache (10-second TTL) ─────────────────────────────────────────
+// Mencegah spam ke Alchemy RPC — tanpa cache, 1000 req/detik = 1000 RPC calls.
+let cachedPayload: string | null = null;
+let cacheExpiresAt = 0;
+const CACHE_TTL_MS = 10_000;
+
 function secondsToLabel(remaining: bigint): string {
   if (remaining <= 0n) return "ENDED";
   const days  = remaining / 86400n;
@@ -12,10 +18,12 @@ function secondsToLabel(remaining: bigint): string {
   return `${mins}m`;
 }
 
+// FIX: tambah explicit case untuk code === 1 (Active)
 function statusFromCode(code: number): string {
   if (code === 0) return "pending";
+  if (code === 1) return "active";
   if (code === 2) return "ended";
-  return "active";
+  return "active"; // safe default
 }
 
 export async function GET() {
@@ -23,8 +31,21 @@ export async function GET() {
     return NextResponse.json({ error: "Contract not deployed" }, { status: 503 });
   }
 
+  // ── Serve dari cache jika masih fresh ──────────────────────────────────────
+  if (cachedPayload && Date.now() < cacheExpiresAt) {
+    return new NextResponse(cachedPayload, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "public, s-maxage=10, stale-while-revalidate=5",
+        "X-Cache": "HIT",
+      },
+    });
+  }
+
   try {
-    const rpcUrl = process.env.SEPOLIA_RPC_URL ?? process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL ?? "https://rpc2.sepolia.org";
+    // Hanya gunakan SEPOLIA_RPC_URL (server-side only) — jangan pakai NEXT_PUBLIC_
+    const rpcUrl = process.env.SEPOLIA_RPC_URL ?? "https://rpc2.sepolia.org";
     const provider = new ethers.JsonRpcProvider(rpcUrl);
     const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
 
@@ -35,7 +56,7 @@ export async function GET() {
 
     const now = BigInt(Math.floor(Date.now() / 1000));
 
-    // Fetch descriptions per proposal
+    // Parallel fetch descriptions (Promise.all = concurrent, bukan sequential)
     const descriptions = await Promise.all(
       ids.map(async (id) => {
         try {
@@ -65,7 +86,20 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ proposals });
+    const body = JSON.stringify({ proposals });
+
+    // Simpan ke cache
+    cachedPayload = body;
+    cacheExpiresAt = Date.now() + CACHE_TTL_MS;
+
+    return new NextResponse(body, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "public, s-maxage=10, stale-while-revalidate=5",
+        "X-Cache": "MISS",
+      },
+    });
   } catch (err: any) {
     console.error("[API /proposals] error:", err?.message);
     return NextResponse.json({ error: err?.message ?? "Failed to fetch" }, { status: 500 });
