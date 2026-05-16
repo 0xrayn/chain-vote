@@ -105,3 +105,12 @@ export async function GET() {
     return NextResponse.json({ error: err?.message ?? "Failed to fetch" }, { status: 500 });
   }
 }
+
+// ── POST /api/proposals — invalidate cache setelah vote / create proposal ────
+// Dipanggil client setelah tx.wait() selesai agar fetch berikutnya
+// langsung hit RPC bukan cache lama.
+export async function POST() {
+  cachedPayload = null;
+  cacheExpiresAt = 0;
+  return NextResponse.json({ ok: true });
+}

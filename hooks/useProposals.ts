@@ -115,7 +115,7 @@ export function useProposals(walletAddress?: string | null) {
 
   useEffect(() => {
     if (!isOnChain) return;
-    pollRef.current = setInterval(() => fetchFromChain(walletAddress), 15_000);
+    pollRef.current = setInterval(() => fetchFromChain(walletAddress), 8_000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [isOnChain, fetchFromChain, walletAddress]);
 
@@ -142,6 +142,8 @@ export function useProposals(walletAddress?: string | null) {
           const tx = await contract.vote(proposalNum, choiceNum);
           toast.info("Transaction sent! Waiting for confirmation…");
           await tx.wait();
+          // Invalidate server cache so next fetch hits RPC fresh
+          await fetch("/api/proposals", { method: "POST" }).catch(() => {});
 
           const choiceLabel = choice === "yes" ? "FOR ✅" : choice === "no" ? "AGAINST ❌" : "ABSTAIN";
           const etherscanUrl = `https://sepolia.etherscan.io/tx/${tx.hash}`;
@@ -212,6 +214,8 @@ export function useProposals(walletAddress?: string | null) {
           const tx = await contract.createProposal(title.trim(), description.trim(), durationSec, quorum);
           toast.info("Transaction sent! Waiting for confirmation…");
           const receipt = await tx.wait();
+          // Invalidate server cache so new proposal appears immediately
+          await fetch("/api/proposals", { method: "POST" }).catch(() => {});
 
           const iface = new ethers.Interface(CONTRACT_ABI as any);
           let newId = "?";
