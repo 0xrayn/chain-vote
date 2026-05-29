@@ -181,28 +181,40 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const balancePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ─── Balance refresh ────────────────────────────────────────────────────
-  const fetchBalance = useCallback(async (address: string, provider?: any): Promise<string> => {
-    try {
-      // Coba eth_getBalance via provider dulu (work untuk semua wallet termasuk WalletConnect)
-      const eth = provider ?? activeProviderRef.current ?? (typeof window !== "undefined" ? (window as any).ethereum : null);
-      if (eth) {
-        try {
+  // RPC URLs untuk fallback balance fetch — selalu pakai ini untuk WalletConnect
+  const RPC_URLS = [
+    process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL,
+    "https://rpc2.sepolia.org",
+    "https://ethereum-sepolia-rpc.publicnode.com",
+    "https://sepolia.drpc.org",
+  ].filter(Boolean) as string[];
+
+  const fetchBalance = useCallback(async (address: string, isWalletConnect = false): Promise<string> => {
+    // WalletConnect: langsung pakai JsonRpcProvider, tidak lewat WC provider
+    // Browser wallet: coba window.ethereum dulu, fallback ke RPC
+    if (!isWalletConnect) {
+      try {
+        const eth = activeProviderRef.current ?? (typeof window !== "undefined" ? (window as any).ethereum : null);
+        if (eth) {
           const balHex: string = await eth.request({
             method: "eth_getBalance",
             params: [address, "latest"],
           });
           return parseFloat(ethers.formatEther(BigInt(balHex))).toFixed(4);
-        } catch { /* fallthrough ke RPC */ }
-      }
-      // Fallback: JsonRpcProvider langsung (tidak tergantung provider type)
-      const rpcUrl = process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL ?? "https://rpc.sepolia.org";
-      const rpcProvider = new ethers.JsonRpcProvider(rpcUrl);
-      const bal = await rpcProvider.getBalance(address);
-      return parseFloat(ethers.formatEther(bal)).toFixed(4);
-    } catch {
-      return "0.0000";
+        }
+      } catch { /* fallthrough ke RPC */ }
     }
-  }, []);
+
+    // Coba RPC URLs satu per satu
+    for (const rpcUrl of RPC_URLS) {
+      try {
+        const rpcProvider = new ethers.JsonRpcProvider(rpcUrl);
+        const bal = await rpcProvider.getBalance(address);
+        return parseFloat(ethers.formatEther(bal)).toFixed(4);
+      } catch { /* coba RPC berikutnya */ }
+    }
+    return "0.0000";
+  }, [RPC_URLS]);
 
   const refreshBalance = useCallback(async () => {
     setWallet((prev) => {
@@ -219,10 +231,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [fetchBalance]);
 
   // Mulai/stop polling saldo
-  const startBalancePoll = useCallback((address: string) => {
+  const startBalancePoll = useCallback((address: string, isWalletConnect = false) => {
     if (balancePollRef.current) clearInterval(balancePollRef.current);
     balancePollRef.current = setInterval(async () => {
-      const bal = await fetchBalance(address);
+      const bal = await fetchBalance(address, isWalletConnect);
       setWallet((prev) => {
         if (!prev.connected || prev.address !== address) return prev;
         if (prev.balance === bal) return prev;
@@ -337,10 +349,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         const chainId = wcProvider.chainId ?? SEPOLIA_CHAIN_ID;
         const address = accounts[0];
         activeProviderRef.current = wcProvider;
-        const balance = await fetchBalance(address, wcProvider);
+        const balance = await fetchBalance(address, true);
         setWallet({ connected: true, address, chainId, balance });
         try { localStorage.setItem(LAST_WALLET_KEY, "walletconnect"); } catch { /* ignore */ }
-        startBalancePoll(address);
+        startBalancePoll(address, true);
 
         if (chainId !== SEPOLIA_CHAIN_ID) {
           toast.success("WalletConnect terhubung! 🎉");
@@ -358,9 +370,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             return;
           }
           const newAddr = accs[0];
-          const newBal = await fetchBalance(newAddr, wcProvider);
+          const newBal = await fetchBalance(newAddr, true);
           setWallet((prev) => ({ ...prev, address: newAddr, balance: newBal }));
-          startBalancePoll(newAddr);
+          startBalancePoll(newAddr, true);
         });
 
         wcProvider.on("chainChanged", (chainIdNum: number) => {
@@ -435,7 +447,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
       const chainId = parseInt(chainIdHex, 16);
       const address = accounts[0];
-      const balance = await fetchBalance(address, provider);
+      const balance = await fetchBalance(address, false);
       setWallet({ connected: true, address, chainId, balance });
       try { localStorage.setItem(LAST_WALLET_KEY, walletType); } catch { /* ignore */ }
       startBalancePoll(address);
@@ -456,7 +468,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           return;
         }
         const newAddr = accs[0];
-        const newBal = await fetchBalance(newAddr, provider);
+        const newBal = await fetchBalance(newAddr, false);
         setWallet((prev) => ({ ...prev, address: newAddr, balance: newBal }));
         startBalancePoll(newAddr);
         toast.info(`Akun: ${newAddr.slice(0, 6)}...${newAddr.slice(-4)}`);
@@ -550,9 +562,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             activeProviderRef.current = wcProvider;
             const address = wcProvider.accounts[0];
             const chainId = wcProvider.chainId ?? SEPOLIA_CHAIN_ID;
-            const balance = await fetchBalance(address, wcProvider);
+            const balance = await fetchBalance(address, true);
             setWallet({ connected: true, address, chainId, balance });
-            startBalancePoll(address);
+            startBalancePoll(address, true);
             wcProvider.on("disconnect", () => {
               stopBalancePoll();
               setWallet({ connected: false, address: null, chainId: null, balance: null });
@@ -577,7 +589,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         const chainId = parseInt(chainIdHex, 16);
         const address = accounts[0];
         activeProviderRef.current = eth;
-        const balance = await fetchBalance(address, eth);
+        const balance = await fetchBalance(address, false);
         setWallet({ connected: true, address, chainId, balance });
         startBalancePoll(address);
       } catch { /* ignore */ }
