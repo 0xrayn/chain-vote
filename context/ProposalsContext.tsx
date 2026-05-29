@@ -232,32 +232,7 @@ export function ProposalsProvider({ children }: { children: React.ReactNode }) {
           action: { label: "Etherscan →", onClick: () => window.open(`https://sepolia.etherscan.io/tx/${tx.hash}`, "_blank") },
           duration: 8000,
         });
-
-        // Langsung inject proposal ke state — jangan tunggu fetchFromChain yang bisa lambat
-        // Ini biar UI langsung update, fetch di background untuk sync data lengkap dari chain
-        const daysMap2: Record<string, string> = {
-          "1 DAY": "Ends in 1d", "3 DAYS": "Ends in 3d",
-          "7 DAYS": "Ends in 7d", "14 DAYS": "Ends in 14d",
-        };
-        if (newId !== "?") {
-          setProposals((prev) => {
-            if (prev.find((p) => p.id === newId)) return prev; // sudah ada, skip
-            return [{
-              id: newId,
-              title: title.trim(),
-              description: description.trim(),
-              status: "active",
-              yes: 0, no: 0, abstain: 0, total: 0,
-              ends: daysMap2[duration] ?? "Ends in 3d",
-              creator: `${creator.slice(0, 6)}...${creator.slice(-4)}`,
-              createdAt: new Date().toISOString().split("T")[0],
-              quorum: 100,
-            }, ...prev];
-          });
-        }
-
-        // Fetch di background untuk update data lengkap (tidak block return)
-        setTimeout(() => fetchFromChain(creator), 3000);
+        await fetchFromChain(creator);
         return true;
       } else {
         const existingNums = proposals.map((p) => parseInt(p.id.replace("VIP-", ""), 10)).filter((n) => !isNaN(n));
