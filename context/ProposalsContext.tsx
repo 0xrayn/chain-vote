@@ -150,7 +150,15 @@ export function ProposalsProvider({ children }: { children: React.ReactNode }) {
         const propNum   = parseInt(id.replace("VIP-", ""), 10);
 
         toast.info("Confirm the transaction in your wallet...");
-        const tx = await contract.vote(propNum, choiceNum);
+        // Estimate gas + 30% buffer
+        let gasLimit: bigint | undefined;
+        try {
+          const estimated = await contract.vote.estimateGas(propNum, choiceNum);
+          gasLimit = (estimated * 130n) / 100n;
+        } catch {
+          gasLimit = 150_000n; // fallback
+        }
+        const tx = await contract.vote(propNum, choiceNum, { gasLimit });
         toast.info("Transaction sent! Waiting for confirmation...");
         await tx.wait();
         await fetch("/api/proposals", { method: "POST" }).catch(() => {});
@@ -206,7 +214,15 @@ export function ProposalsProvider({ children }: { children: React.ReactNode }) {
         const durationSec = DURATION_SECONDS[duration] ?? DURATION_SECONDS["3 DAYS"];
 
         toast.info("Confirm the transaction in your wallet...");
-        const tx = await contract.createProposal(title.trim(), description.trim(), durationSec, 100n);
+        // Estimate gas + 40% buffer — createProposal butuh banyak gas karena string storage
+        let gasLimit: bigint | undefined;
+        try {
+          const estimated = await contract.createProposal.estimateGas(title.trim(), description.trim(), durationSec, 100n);
+          gasLimit = (estimated * 140n) / 100n;
+        } catch {
+          gasLimit = 500_000n; // fallback hardcoded kalau estimate gagal
+        }
+        const tx = await contract.createProposal(title.trim(), description.trim(), durationSec, 100n, { gasLimit });
         toast.info("Transaction sent! Waiting for confirmation...");
         const receipt = await tx.wait();
         await fetch("/api/proposals", { method: "POST" }).catch(() => {});
