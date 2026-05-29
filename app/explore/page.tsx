@@ -2,7 +2,7 @@
 import dynamic from "next/dynamic";
 import { useState, useEffect } from "react";
 import { Search, Filter, SlidersHorizontal } from "lucide-react";
-import { useWallet } from "@/hooks/useWallet";
+import { useWalletContext } from "@/context/WalletContext";
 import { useProposals } from "@/hooks/useProposals";
 import Navbar from "@/components/Navbar";
 import ProposalCard from "@/components/ProposalCard";
@@ -20,7 +20,7 @@ const FILTERS: { key: ProposalStatus | "all"; label: string }[] = [
 ];
 
 export default function ExplorePage() {
-  const { wallet, connect, disconnect, shortAddress, isConnecting, isWrongNetwork, switchToSepolia, discoveredProviders } = useWallet();
+  const { wallet, connect, disconnect, shortAddress, isConnecting, isWrongNetwork, switchToSepolia, discoveredProviders } = useWalletContext();
   const { proposals, myVotes, vote, votingId , setWalletAddress } = useProposals();
   const [filter, setFilter] = useState<ProposalStatus | "all">("all");
   const [search, setSearch] = useState("");

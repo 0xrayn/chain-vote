@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { X, Wallet, Shield, Zap, ChevronRight, Loader2, AlertTriangle, CheckCircle2, Smartphone } from "lucide-react";
-import { EIP6963ProviderDetail } from "@/hooks/useWallet";
+import { EIP6963ProviderDetail } from "@/context/WalletContext";
 
 interface WalletOption {
   id: string;

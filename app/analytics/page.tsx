@@ -2,7 +2,7 @@
 import dynamic from "next/dynamic";
 import { useState, useEffect } from "react";
 import { BarChart3, TrendingUp, Users, Activity, Zap, ArrowUpRight } from "lucide-react";
-import { useWallet } from "@/hooks/useWallet";
+import { useWalletContext } from "@/context/WalletContext";
 import { useProposals } from "@/hooks/useProposals";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -44,7 +44,7 @@ function SimpleBar({ label, pct, color }: { label: string; pct: number; color: s
 }
 
 export default function AnalyticsPage() {
-  const { wallet, connect, disconnect, shortAddress, isConnecting, isWrongNetwork, switchToSepolia, discoveredProviders } = useWallet();
+  const { wallet, connect, disconnect, shortAddress, isConnecting, isWrongNetwork, switchToSepolia, discoveredProviders } = useWalletContext();
   const { proposals , setWalletAddress } = useProposals();
   useEffect(() => { setWalletAddress(wallet.address ?? null); }, [wallet.address, setWalletAddress]);
 

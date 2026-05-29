@@ -2,7 +2,7 @@
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { BookOpen, Code2, Shield, Zap, ChevronRight, ExternalLink, Terminal, Copy, Check } from "lucide-react";
-import { useWallet } from "@/hooks/useWallet";
+import { useWalletContext } from "@/context/WalletContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ConnectWalletModal from "@/components/ConnectWalletModal";
@@ -132,7 +132,7 @@ await voteTx.wait();
 const [yes, no, abstain] = await contract.getResults(proposalId);`;
 
 export default function DocsPage() {
-  const { wallet, connect, disconnect, shortAddress, isConnecting, isWrongNetwork, switchToSepolia, discoveredProviders } = useWallet();
+  const { wallet, connect, disconnect, shortAddress, isConnecting, isWrongNetwork, switchToSepolia, discoveredProviders } = useWalletContext();
   const [activeSection, setActiveSection] = useState("overview");
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [connectingWallet, setConnectingWallet] = useState("");

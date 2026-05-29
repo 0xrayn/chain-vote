@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ProposalsProvider } from "@/context/ProposalsContext";
+import { WalletProvider } from "@/context/WalletContext";
 
 const syne = Syne({
   subsets: ["latin"],
@@ -30,6 +31,7 @@ export default function RootLayout({
     <html lang="en" className={`${syne.variable} ${spaceMono.variable}`} data-scroll-behavior="smooth">
       <body className="antialiased">
         <ThemeProvider>
+          <WalletProvider>
           <ProposalsProvider>
           {children}
           <Toaster
@@ -49,6 +51,7 @@ export default function RootLayout({
             }}
           />
           </ProposalsProvider>
+          </WalletProvider>
         </ThemeProvider>
       </body>
     </html>

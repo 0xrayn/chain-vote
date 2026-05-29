@@ -7,7 +7,7 @@ import {
   BarChart3, Shield, Zap, ArrowUpRight, Copy, Check,
   Trophy, Activity
 } from "lucide-react";
-import { useWallet } from "@/hooks/useWallet";
+import { useWalletContext } from "@/context/WalletContext";
 import { useProposals } from "@/hooks/useProposals";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -42,7 +42,7 @@ function CopyBtn({ text }: { text: string }) {
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { wallet, connect, disconnect, shortAddress, isConnecting, isWrongNetwork, switchToSepolia, discoveredProviders } = useWallet();
+  const { wallet, connect, disconnect, shortAddress, isConnecting, isWrongNetwork, switchToSepolia, discoveredProviders } = useWalletContext();
   const { proposals, myVotes, isLoading , setWalletAddress } = useProposals();
   useEffect(() => { setWalletAddress(wallet.address ?? null); }, [wallet.address, setWalletAddress]);
 

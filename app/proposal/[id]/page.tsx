@@ -7,7 +7,7 @@ import {
   Trophy, Users, Shield, ExternalLink, Copy, Check,
   TrendingUp, AlertCircle, Lock, FileText, Hash
 } from "lucide-react";
-import { useWallet } from "@/hooks/useWallet";
+import { useWalletContext } from "@/context/WalletContext";
 import { useProposals } from "@/hooks/useProposals";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -69,7 +69,7 @@ function CopyButton({ text }: { text: string }) {
 export default function ProposalDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { wallet, connect, disconnect, shortAddress, isConnecting, isWrongNetwork, switchToSepolia, discoveredProviders } = useWallet();
+  const { wallet, connect, disconnect, shortAddress, isConnecting, isWrongNetwork, switchToSepolia, discoveredProviders } = useWalletContext();
   const { proposals, myVotes, vote, votingId , setWalletAddress } = useProposals();
   useEffect(() => { setWalletAddress(wallet.address ?? null); }, [wallet.address, setWalletAddress]);
 

@@ -2,7 +2,7 @@
 import dynamic from "next/dynamic";
 import { useState, useEffect } from "react";
 import { LayoutGrid, PlusCircle, BarChart3, Activity, Users, Zap, TrendingUp } from "lucide-react";
-import { useWallet } from "@/hooks/useWallet";
+import { useWalletContext } from "@/context/WalletContext";
 import { useProposals } from "@/hooks/useProposals";
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
@@ -24,7 +24,7 @@ const TABS: { key: Tab; label: string; icon: React.ReactNode; desc: string }[] =
 ];
 
 export default function Home() {
-  const { wallet, connect, disconnect, shortAddress, isConnecting, isWrongNetwork, switchToSepolia, discoveredProviders } = useWallet();
+  const { wallet, connect, disconnect, shortAddress, isConnecting, isWrongNetwork, switchToSepolia, discoveredProviders } = useWalletContext();
   const { proposals, myVotes, vote, createProposal, votingId, isOnChain, isLoading , setWalletAddress } = useProposals();
   const [activeTab, setActiveTab] = useState<Tab>("proposals");
   useEffect(() => { setWalletAddress(wallet.address ?? null); }, [wallet.address, setWalletAddress]);
