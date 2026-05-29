@@ -30,7 +30,9 @@
     "@radix-ui/react-tooltip": "^1.1.6",
     "@radix-ui/react-tabs": "^1.1.2",
     "@radix-ui/react-slot": "^1.1.1",
-    "sonner": "^1.7.2"
+    "sonner": "^1.7.2",
+    "@walletconnect/ethereum-provider": "^2.17.0",
+    "@walletconnect/modal": "^2.6.2"
   },
   "devDependencies": {
     "typescript": "^5",

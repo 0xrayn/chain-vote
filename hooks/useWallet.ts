@@ -16,6 +16,7 @@ const SEPOLIA_PARAMS = {
 };
 
 const LAST_WALLET_KEY = "chainvotes_last_wallet";
+const WC_PROJECT_ID = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "";
 
 export interface EIP6963ProviderDetail {
   info: {
@@ -26,6 +27,8 @@ export interface EIP6963ProviderDetail {
   };
   provider: any;
 }
+
+// ─── EIP-6963 Discovery ────────────────────────────────────────────────────
 
 // 800ms cukup untuk semua wallet modern termasuk Bitget
 function discoverProviders(timeoutMs = 800): Promise<EIP6963ProviderDetail[]> {
@@ -53,9 +56,13 @@ function discoverProviders(timeoutMs = 800): Promise<EIP6963ProviderDetail[]> {
   });
 }
 
-// Cari provider berdasarkan walletType  lebih agresif untuk Bitget
+// ─── Provider Resolution ───────────────────────────────────────────────────
+
 function resolveProvider(walletType: string, providers: EIP6963ProviderDetail[]): any | null {
   const typeNorm = walletType.toLowerCase();
+
+  // walletconnect dihandle terpisah
+  if (typeNorm === "walletconnect") return null;
 
   // 1. Coba EIP-6963 dulu (paling akurat)
   if (providers.length > 0) {
@@ -65,6 +72,8 @@ function resolveProvider(walletType: string, providers: EIP6963ProviderDetail[])
       coinbase: ["com.coinbase.wallet"],
       brave:    ["com.brave.wallet"],
       trust:    ["com.trustwallet.app"],
+      okx:      ["com.okex.wallet"],
+      rainbow:  ["me.rainbow"],
     };
     const targetRdns = rdnsMap[typeNorm] ?? [];
     for (const rdns of targetRdns) {
@@ -84,7 +93,6 @@ function resolveProvider(walletType: string, providers: EIP6963ProviderDetail[])
     const eth = (window as any).ethereum;
     if (!eth) return null;
 
-    // Jika ada multiple providers (window.ethereum.providers array)
     const ethProviders: any[] = eth.providers ?? [];
     if (ethProviders.length > 0) {
       if (typeNorm === "metamask") {
@@ -99,59 +107,93 @@ function resolveProvider(walletType: string, providers: EIP6963ProviderDetail[])
         const cb = ethProviders.find((p: any) => p.isCoinbaseWallet);
         if (cb) return cb;
       }
+      if (typeNorm === "trust") {
+        const tw = ethProviders.find((p: any) => p.isTrust || p.isTrustWallet);
+        if (tw) return tw;
+      }
+      if (typeNorm === "okx") {
+        const ok = ethProviders.find((p: any) => p.isOkxWallet || p.isOKExWallet);
+        if (ok) return ok;
+      }
     }
 
-    // Single provider
+    // Single provider fallbacks
     if (typeNorm === "metamask" && eth.isMetaMask && !eth.isBitKeep && !eth.isBitget) return eth;
     if (typeNorm === "bitget" && (eth.isBitKeep || eth.isBitget || eth.isBitGetWallet)) return eth;
     if (typeNorm === "coinbase" && eth.isCoinbaseWallet) return eth;
     if (typeNorm === "brave" && eth.isBraveWallet) return eth;
+    if (typeNorm === "trust" && (eth.isTrust || eth.isTrustWallet)) return eth;
+    if (typeNorm === "okx" && (eth.isOkxWallet || eth.isOKExWallet)) return eth;
 
-    // Last resort: return whatever window.ethereum ada
+    // Last resort
     if (providers.length === 0) return eth;
   }
 
   return null;
 }
 
-// Request accounts dengan retry & timeout yang lebih cerdas
+// ─── Request Accounts ──────────────────────────────────────────────────────
+
 async function requestAccounts(provider: any): Promise<string[]> {
-  // Cek apakah sudah ada pending request (code -32002)
-  // dengan mencoba eth_accounts dulu (tidak trigger popup)
   try {
     const existing: string[] = await provider.request({ method: "eth_accounts" });
     if (existing && existing.length > 0) return existing;
   } catch { /* ignore */ }
 
-  // Sekarang request dengan timeout 60 detik
-  // (Bitget popup bisa muncul lambat, tapi user butuh waktu untuk approve)
   return new Promise<string[]>((resolve, reject) => {
     let settled = false;
 
     const timer = setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        reject(new Error("WALLET_TIMEOUT"));
-      }
+      if (!settled) { settled = true; reject(new Error("WALLET_TIMEOUT")); }
     }, 60_000);
 
     provider.request({ method: "eth_requestAccounts" })
       .then((accounts: string[]) => {
-        if (!settled) {
-          settled = true;
-          clearTimeout(timer);
-          resolve(accounts);
-        }
+        if (!settled) { settled = true; clearTimeout(timer); resolve(accounts); }
       })
       .catch((err: any) => {
-        if (!settled) {
-          settled = true;
-          clearTimeout(timer);
-          reject(err);
-        }
+        if (!settled) { settled = true; clearTimeout(timer); reject(err); }
       });
   });
 }
+
+// ─── WalletConnect Provider (lazy-loaded) ─────────────────────────────────
+
+let wcProviderCache: any = null;
+
+async function getWalletConnectProvider(): Promise<any> {
+  if (wcProviderCache?.connected) return wcProviderCache;
+
+  const { EthereumProvider } = await import("@walletconnect/ethereum-provider");
+
+  const provider = await EthereumProvider.init({
+    projectId: WC_PROJECT_ID,
+    chains: [SEPOLIA_CHAIN_ID],
+    optionalChains: [1, 137, 56],
+    showQrModal: true,
+    qrModalOptions: {
+      themeMode: "dark",
+      themeVariables: {
+        "--wcm-accent-color": "#00f5a0",
+        "--wcm-background-color": "#0a0f1a",
+      },
+    },
+    metadata: {
+      name: "ChainVotes",
+      description: "Decentralized governance on Sepolia",
+      url: typeof window !== "undefined" ? window.location.origin : "https://chainvotes.app",
+      icons: ["https://chainvotes.app/favicon.ico"],
+    },
+    rpcMap: {
+      [SEPOLIA_CHAIN_ID]: process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL ?? "https://rpc.sepolia.org",
+    },
+  });
+
+  wcProviderCache = provider;
+  return provider;
+}
+
+// ─── Main Hook ─────────────────────────────────────────────────────────────
 
 export function useWallet() {
   const [wallet, setWallet] = useState<WalletState>({
@@ -163,19 +205,16 @@ export function useWallet() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [discoveredProviders, setDiscoveredProviders] = useState<EIP6963ProviderDetail[]>([]);
   const activeProviderRef = useRef<any>(null);
-  // Simpan abort controller agar bisa cancel request yang pending
   const abortRef = useRef<{ abort: () => void } | null>(null);
 
-  // Listen untuk provider baru yang announce setelah init
+  // Discovery awal + listen untuk provider baru
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // Discovery awal  800ms sudah cukup untuk semua wallet modern
     discoverProviders(800).then((providers) => {
       setDiscoveredProviders(providers);
     });
 
-    // Keep listening untuk late-announcing providers
     const lateHandler = (event: Event) => {
       const detail = (event as CustomEvent<EIP6963ProviderDetail>).detail;
       if (!detail?.info?.uuid) return;
@@ -185,7 +224,6 @@ export function useWallet() {
       });
     };
     window.addEventListener("eip6963:announceProvider", lateHandler as EventListener);
-    // Re-request agar provider yang sudah ada announce lagi
     window.dispatchEvent(new Event("eip6963:requestProvider"));
 
     return () => window.removeEventListener("eip6963:announceProvider", lateHandler as EventListener);
@@ -219,7 +257,6 @@ export function useWallet() {
         throw err;
       }
     }
-    // Force-refresh chainId setelah switch  Bitget kadang tidak trigger event chainChanged
     try {
       const chainIdHex: string = await eth.request({ method: "eth_chainId" });
       const newChainId = parseInt(chainIdHex, 16);
@@ -230,21 +267,110 @@ export function useWallet() {
     } catch { /* ignore */ }
   }, []);
 
+  // ─── Connect ──────────────────────────────────────────────────────────────
+
   const connect = useCallback(async (walletType = "metamask") => {
     if (typeof window === "undefined") return;
 
     setIsConnecting(true);
 
-    // User sengaja connect  hapus flag disconnect
     try { sessionStorage.removeItem("chainvotes_disconnected"); } catch { /* ignore */ }
 
-    // Abort controller  dipanggil saat user cancel
     let cancelled = false;
     abortRef.current = { abort: () => { cancelled = true; } };
 
     try {
-      // Gunakan providers yang sudah di-discover saat page load (dari state).
-      // Hanya re-discover jika state masih kosong (misal connect() dipanggil sangat cepat setelah mount).
+      // ── WalletConnect path ──────────────────────────────────────────────
+      if (walletType === "walletconnect") {
+        if (!WC_PROJECT_ID || WC_PROJECT_ID === "YOUR_PROJECT_ID_HERE") {
+          toast.error("WalletConnect Project ID belum dikonfigurasi. Tambahkan NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID di .env.local");
+          return;
+        }
+
+        toast.info("Membuka QR Code WalletConnect...", { duration: 5000 });
+
+        let wcProvider: any;
+        try {
+          wcProvider = await getWalletConnectProvider();
+        } catch (initErr: any) {
+          toast.error("Gagal inisialisasi WalletConnect. Cek koneksi internet kamu.");
+          console.error("[WC] init error:", initErr);
+          return;
+        }
+
+        if (cancelled) { await wcProvider.disconnect().catch(() => {}); return; }
+
+        try {
+          await wcProvider.connect();
+        } catch (connErr: any) {
+          if (cancelled) return;
+          const msg = connErr?.message ?? "";
+          if (msg.includes("User rejected") || msg.includes("rejected")) {
+            toast.error("Koneksi WalletConnect dibatalkan.");
+          } else if (msg.includes("Modal closed")) {
+            toast.info("Modal ditutup. Coba lagi jika ingin connect.");
+          } else {
+            toast.error(`WalletConnect error: ${msg.slice(0, 100)}`);
+          }
+          return;
+        }
+
+        if (cancelled) { await wcProvider.disconnect().catch(() => {}); return; }
+
+        const accounts: string[] = wcProvider.accounts ?? [];
+        if (!accounts.length) {
+          toast.error("Tidak ada akun dari WalletConnect.");
+          return;
+        }
+
+        const chainId: number = wcProvider.chainId ?? SEPOLIA_CHAIN_ID;
+        const address = accounts[0];
+        activeProviderRef.current = wcProvider;
+
+        const balance = await fetchBalance(address, wcProvider);
+        setWallet({ connected: true, address, chainId, balance });
+        try { localStorage.setItem(LAST_WALLET_KEY, "walletconnect"); } catch { /* ignore */ }
+
+        if (chainId !== SEPOLIA_CHAIN_ID) {
+          toast.success("WalletConnect terhubung! 🎉");
+          toast.warning('Kamu di jaringan salah. Klik "WRONG NETWORK" di navbar untuk pindah ke Sepolia.', { duration: 6000 });
+        } else {
+          toast.success(`WalletConnect: ${address.slice(0, 6)}...${address.slice(-4)} 🎉`);
+        }
+
+        wcProvider.on("accountsChanged", async (accs: string[]) => {
+          if (!accs?.length) {
+            setWallet({ connected: false, address: null, chainId: null, balance: null });
+            try { localStorage.removeItem(LAST_WALLET_KEY); } catch { /* ignore */ }
+            toast.warning("WalletConnect disconnected.");
+            return;
+          }
+          const newAddr = accs[0];
+          const newBal = await fetchBalance(newAddr, wcProvider);
+          setWallet((prev) => ({ ...prev, address: newAddr, balance: newBal }));
+        });
+
+        wcProvider.on("chainChanged", (chainIdNum: number) => {
+          setWallet((prev) => ({ ...prev, chainId: chainIdNum }));
+          if (chainIdNum !== SEPOLIA_CHAIN_ID) {
+            toast.warning("Network berganti. Silakan pindah ke Sepolia.");
+          } else {
+            toast.success("Sekarang di Sepolia Testnet.");
+          }
+        });
+
+        wcProvider.on("disconnect", () => {
+          setWallet({ connected: false, address: null, chainId: null, balance: null });
+          activeProviderRef.current = null;
+          wcProviderCache = null;
+          try { localStorage.removeItem(LAST_WALLET_KEY); } catch { /* ignore */ }
+          toast.info("WalletConnect terputus.");
+        });
+
+        return;
+      }
+
+      // ── Browser wallet path (MetaMask, Bitget, dll.) ────────────────────
       let freshProviders = discoveredProviders;
       if (freshProviders.length === 0) {
         freshProviders = await discoverProviders(800);
@@ -260,35 +386,37 @@ export function useWallet() {
           bitget:   "https://web3.bitget.com/en/wallet-download",
           coinbase: "https://www.coinbase.com/wallet/downloads",
           brave:    "https://brave.com/download/",
+          trust:    "https://trustwallet.com/browser-extension",
+          okx:      "https://www.okx.com/web3",
+          rainbow:  "https://rainbow.me/download",
         };
         const url = installUrls[walletType.toLowerCase()] ?? "https://metamask.io/download/";
-        toast.error(`${walletType} not found. Opening install page...`);
+        toast.error(`${walletType} tidak ditemukan. Membuka halaman instalasi...`);
         window.open(url, "_blank", "noopener,noreferrer");
         return;
       }
 
       activeProviderRef.current = provider;
 
-      // Tampilkan toast instruksi SEBELUM request  Bitget perlu user buka app-nya
-      toast.info("Open your wallet and approve the connection request...", { duration: 8000 });
+      toast.info("Buka wallet kamu dan setujui permintaan koneksi...", { duration: 8000 });
 
       let accounts: string[];
       try {
         accounts = await requestAccounts(provider);
       } catch (reqErr: any) {
-        if (cancelled) return; // user sudah cancel via modal
+        if (cancelled) return;
 
         const code = reqErr.code ?? reqErr?.error?.code;
         if (reqErr.message === "WALLET_TIMEOUT") {
-          toast.error("Wallet did not respond (60s). Make sure your wallet is open and try again.");
+          toast.error("Wallet tidak merespons (60 detik). Pastikan wallet kamu terbuka lalu coba lagi.");
           return;
         }
         if (code === 4001 || reqErr.message?.includes("rejected") || reqErr.message?.includes("denied")) {
-          toast.error("Connection rejected. Please approve in your wallet.");
+          toast.error("Koneksi ditolak. Silakan setujui di wallet kamu.");
           return;
         }
         if (code === -32002) {
-          toast.warning("A connection request is already pending  open your wallet and approve it.");
+          toast.warning("Ada permintaan koneksi yang sedang pending — buka wallet dan setujui.");
           return;
         }
         throw reqErr;
@@ -297,7 +425,7 @@ export function useWallet() {
       if (cancelled) return;
 
       if (!accounts || accounts.length === 0) {
-        toast.error("No accounts found. Make sure your wallet is unlocked.");
+        toast.error("Tidak ada akun ditemukan. Pastikan wallet kamu tidak terkunci.");
         return;
       }
 
@@ -318,34 +446,32 @@ export function useWallet() {
       try { localStorage.setItem(LAST_WALLET_KEY, walletType); } catch { /* ignore */ }
 
       if (chainId !== SEPOLIA_CHAIN_ID) {
-        // Kasih tahu user network salah  tapi JANGAN auto-switch, biarkan user klik sendiri
-        toast.success(`${walletType} connected! 🎉`);
-        toast.warning("You're on the wrong network. Click \"WRONG NETWORK\" in the navbar to switch to Sepolia.", { duration: 6000 });
+        toast.success(`${walletType} terhubung! 🎉`);
+        toast.warning('Kamu di jaringan salah. Klik "WRONG NETWORK" di navbar untuk pindah ke Sepolia.', { duration: 6000 });
       } else {
-        toast.success(`${walletType} connected: ${address.slice(0, 6)}...${address.slice(-4)} 🎉`);
+        toast.success(`${walletType} terhubung: ${address.slice(0, 6)}...${address.slice(-4)} 🎉`);
       }
 
-      // Event listeners
       const handleAccountsChanged = async (accs: string[]) => {
         if (!accs || accs.length === 0) {
           setWallet({ connected: false, address: null, chainId: null, balance: null });
           try { localStorage.removeItem(LAST_WALLET_KEY); } catch { /* ignore */ }
-          toast.warning("Wallet disconnected.");
+          toast.warning("Wallet terputus.");
           return;
         }
         const newAddr = accs[0];
         const newBal = await fetchBalance(newAddr, provider);
         setWallet((prev) => ({ ...prev, address: newAddr, balance: newBal }));
-        toast.info(`Account: ${newAddr.slice(0, 6)}...${newAddr.slice(-4)}`);
+        toast.info(`Akun: ${newAddr.slice(0, 6)}...${newAddr.slice(-4)}`);
       };
 
       const handleChainChanged = (hex: string) => {
         const cid = parseInt(hex, 16);
         setWallet((prev) => ({ ...prev, chainId: cid }));
         if (cid !== SEPOLIA_CHAIN_ID) {
-          toast.warning("Network switched to a different chain. Please switch back to Sepolia.");
+          toast.warning("Jaringan berganti. Silakan pindah kembali ke Sepolia.");
         } else {
-          toast.success("Now on Sepolia Testnet.");
+          toast.success("Sekarang di Sepolia Testnet.");
         }
       };
 
@@ -359,9 +485,9 @@ export function useWallet() {
       console.error("[useWallet] connect error:", err);
       const msg = err?.message ?? err?.toString() ?? "Unknown error";
       if (msg.includes("Failed to connect") || msg.includes("inpage.js")) {
-        toast.error("Connection failed. Try refreshing the page or unlocking your wallet.");
+        toast.error("Koneksi gagal. Coba refresh halaman atau unlock wallet kamu.");
       } else {
-        toast.error(`Connection error: ${msg.slice(0, 120)}`);
+        toast.error(`Error koneksi: ${msg.slice(0, 120)}`);
       }
     } finally {
       if (!cancelled) setIsConnecting(false);
@@ -369,59 +495,99 @@ export function useWallet() {
     }
   }, [fetchBalance, switchToSepolia, discoveredProviders]);
 
+  // ─── Disconnect ───────────────────────────────────────────────────────────
+
   const disconnect = useCallback(async () => {
-    // Cancel koneksi yang sedang berjalan jika ada
     if (abortRef.current) {
       abortRef.current.abort();
       abortRef.current = null;
     }
     setIsConnecting(false);
 
-    // Coba revoke permission dari wallet (didukung MetaMask & Bitget modern)
     const provider = activeProviderRef.current ?? (window as any)?.ethereum;
     if (provider) {
       try {
-        await provider.request({
-          method: "wallet_revokePermissions",
-          params: [{ eth_accounts: {} }],
-        });
-      } catch {
-        // Tidak semua wallet support wallet_revokePermissions  tidak apa-apa
-      }
+        if (provider.disconnect) {
+          await provider.disconnect();
+          wcProviderCache = null;
+        } else {
+          await provider.request({
+            method: "wallet_revokePermissions",
+            params: [{ eth_accounts: {} }],
+          });
+        }
+      } catch { /* tidak semua wallet support ini */ }
     }
 
     setWallet({ connected: false, address: null, chainId: null, balance: null });
     activeProviderRef.current = null;
 
-    // Tandai bahwa user SENGAJA disconnect  auto-reconnect harus di-skip
     try {
       localStorage.removeItem(LAST_WALLET_KEY);
       sessionStorage.setItem("chainvotes_disconnected", "1");
     } catch { /* ignore */ }
 
-    toast.info("Wallet disconnected from app.");
+    toast.info("Wallet terputus dari app.");
   }, []);
 
-  // Auto-reconnect saat halaman dimuat  SKIP jika user sengaja disconnect
+  // ─── Auto-reconnect ───────────────────────────────────────────────────────
+
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const autoReconnect = async () => {
-      // Cek apakah user sengaja disconnect di session ini
       try {
         const intentionalDisconnect = sessionStorage.getItem("chainvotes_disconnected");
-        if (intentionalDisconnect === "1") return; // jangan auto-konek
+        if (intentionalDisconnect === "1") return;
       } catch { /* ignore */ }
 
       let lastWalletType = "metamask";
-      try { lastWalletType = localStorage.getItem(LAST_WALLET_KEY) ?? "metamask"; } catch { /* ignore */ }
-
-      // Kalau tidak ada lastWallet tersimpan, jangan auto-konek
       try {
         const stored = localStorage.getItem(LAST_WALLET_KEY);
         if (!stored) return;
+        lastWalletType = stored;
       } catch { return; }
 
+      // WalletConnect auto-reconnect
+      if (lastWalletType === "walletconnect") {
+        try {
+          const { EthereumProvider } = await import("@walletconnect/ethereum-provider");
+          const wcProvider = await EthereumProvider.init({
+            projectId: WC_PROJECT_ID,
+            chains: [SEPOLIA_CHAIN_ID],
+            optionalChains: [1, 137, 56],
+            showQrModal: false,
+            metadata: {
+              name: "ChainVotes",
+              description: "Decentralized governance on Sepolia",
+              url: typeof window !== "undefined" ? window.location.origin : "https://chainvotes.app",
+              icons: [],
+            },
+            rpcMap: {
+              [SEPOLIA_CHAIN_ID]: process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL ?? "https://rpc.sepolia.org",
+            },
+          });
+
+          if (wcProvider.connected && wcProvider.accounts?.length) {
+            wcProviderCache = wcProvider;
+            activeProviderRef.current = wcProvider;
+            const address = wcProvider.accounts[0];
+            const chainId = wcProvider.chainId ?? SEPOLIA_CHAIN_ID;
+            const balance = await fetchBalance(address, wcProvider);
+            setWallet({ connected: true, address, chainId, balance });
+
+            wcProvider.on("disconnect", () => {
+              setWallet({ connected: false, address: null, chainId: null, balance: null });
+              activeProviderRef.current = null;
+              wcProviderCache = null;
+              try { localStorage.removeItem(LAST_WALLET_KEY); } catch { /* ignore */ }
+            });
+          }
+        } catch { /* WC session sudah expired, biarkan */ }
+        return;
+      }
+
+      // Browser wallet auto-reconnect
       const providers = await discoverProviders(800);
       const provider = resolveProvider(lastWalletType, providers);
       const eth = provider ?? (window as any).ethereum;

@@ -77,7 +77,7 @@ Connect your wallet to see your personal voting history: every proposal you vote
 | 3D Background | Three.js |
 | Animations | Framer Motion |
 | Notifications | Sonner |
-| Wallet Support | MetaMask, Bitget, Coinbase, Brave (EIP-6963) |
+| Wallet Support | MetaMask, Bitget, Coinbase, Brave, Trust (EIP-6963) + WalletConnect v2 |
 
 ---
 
@@ -96,7 +96,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) and proposals load directly from the blockchain.
 
-To vote or create a proposal you need a wallet (MetaMask or Bitget) with some Sepolia ETH.
+To vote or create a proposal you need a wallet with some Sepolia ETH.
 
 ### Option B: Deploy your own contract
 
@@ -121,6 +121,7 @@ DEPLOYER_PRIVATE_KEY=0xYOUR_PRIVATE_KEY
 SEPOLIA_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY
 ETHERSCAN_API_KEY=YOUR_ETHERSCAN_KEY
 NEXT_PUBLIC_CONTRACT_ADDRESS=
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=YOUR_PROJECT_ID
 ```
 
 Never commit `.env.local` to GitHub. It is already in `.gitignore`.
@@ -151,10 +152,53 @@ npm run dev
 
 ## Wallet Setup
 
-1. Install [MetaMask](https://metamask.io) or [Bitget Wallet](https://web3.bitget.com)
-2. Switch to Sepolia Testnet (Chain ID: 11155111)
-3. Get Sepolia ETH from a faucet
-4. Click Connect Wallet in the app
+### Browser Wallets (Desktop)
+
+Install one of these extensions and switch to Sepolia Testnet (Chain ID: 11155111):
+
+- [MetaMask](https://metamask.io/download/) — most popular
+- [Bitget Wallet](https://web3.bitget.com/en/wallet-download) — all-in-one Web3
+- [Coinbase Wallet](https://www.coinbase.com/wallet/downloads)
+- [Trust Wallet](https://trustwallet.com/browser-extension)
+- [Brave Wallet](https://brave.com/download/) — built into Brave browser
+
+Any wallet implementing EIP-6963 is detected automatically.
+
+### Mobile Wallets via WalletConnect
+
+Connect from your phone without installing any browser extension:
+
+1. Click **Connect Wallet** in the app
+2. Select **WalletConnect**
+3. A QR code will appear
+4. Open your mobile wallet → tap the scan/WalletConnect icon
+5. Scan the QR code and approve — done
+
+Supported mobile wallets include Trust Wallet, MetaMask Mobile, Rainbow, Coinbase Wallet, Bitget Wallet, and 300+ others.
+
+> **Setup required:** WalletConnect needs a free Project ID from [cloud.reown.com](https://cloud.reown.com) (formerly WalletConnect Cloud). Add it to `.env.local` as `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`.
+
+---
+
+## WalletConnect Setup
+
+WalletConnect was rebranded to **Reown** in late 2024. The cloud dashboard is now at [cloud.reown.com](https://cloud.reown.com) — the underlying protocol and package names remain the same.
+
+**Steps to get a Project ID:**
+
+1. Go to [cloud.reown.com](https://cloud.reown.com) and sign up (free)
+2. Click **Create Project** → choose **AppKit**
+3. Give it any name (e.g. "ChainVotes")
+4. Copy the **Project ID**
+5. Add to `.env.local`:
+
+```env
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=paste_your_project_id_here
+```
+
+6. Restart the dev server: `npm run dev`
+
+No credit card required. The free tier is sufficient for development and small projects.
 
 ---
 
@@ -207,13 +251,13 @@ chainvotes/
 │   ├── ProposalCard.tsx
 │   ├── CreateProposal.tsx
 │   ├── Results.tsx
-│   ├── ConnectWalletModal.tsx
+│   ├── ConnectWalletModal.tsx   EIP-6963 + WalletConnect
 │   ├── ThreeBackground.tsx
 │   └── ui/
 ├── contracts/
 │   └── ChainVotes.sol
 ├── hooks/
-│   ├── useWallet.ts             EIP-6963 multi-wallet support
+│   ├── useWallet.ts             EIP-6963 multi-wallet + WalletConnect v2
 │   └── useProposals.ts          re-exports from context
 ├── lib/
 │   ├── contract.ts              ABI and address
@@ -232,9 +276,10 @@ chainvotes/
 | Variable | Required | Description |
 |---|---|---|
 | `DEPLOYER_PRIVATE_KEY` | Option B | Deployer wallet key. Server-only, never commit. |
-| `SEPOLIA_RPC_URL` | Option B | Alchemy or Infura RPC URL. Server-only, never use NEXT_PUBLIC_ prefix. |
-| `ETHERSCAN_API_KEY` | Optional | For contract verification on Etherscan |
-| `NEXT_PUBLIC_CONTRACT_ADDRESS` | Auto | Filled automatically by the deploy script |
+| `SEPOLIA_RPC_URL` | Option B | Alchemy or Infura RPC URL. Server-only. |
+| `ETHERSCAN_API_KEY` | Optional | For contract verification on Etherscan. |
+| `NEXT_PUBLIC_CONTRACT_ADDRESS` | Auto | Filled automatically by the deploy script. |
+| `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | WalletConnect | Free Project ID from [cloud.reown.com](https://cloud.reown.com). Required for mobile wallet support via QR code. |
 
 ---
 
@@ -272,7 +317,14 @@ No. Proposals load from the blockchain without any wallet connection. A wallet i
 No. Once a transaction confirms on-chain, your vote is permanent and cannot be modified.
 
 **What wallets are supported?**
-MetaMask, Bitget Wallet, Coinbase Wallet, and Brave Wallet. Any wallet that implements EIP-6963 works.
+Browser extensions: MetaMask, Bitget Wallet, Coinbase Wallet, Trust Wallet, and Brave Wallet (plus any EIP-6963 compliant wallet).
+Mobile: any wallet supporting WalletConnect v2 — Trust Wallet, MetaMask Mobile, Rainbow, and 300+ others.
+
+**Do I need a WalletConnect Project ID?**
+Only if you want to use the WalletConnect / mobile QR feature. Get one free at [cloud.reown.com](https://cloud.reown.com). Browser extension wallets work without it.
+
+**WalletConnect redirects to reown.com — is that correct?**
+Yes. WalletConnect rebranded to Reown in late 2024. The dashboard is now at [cloud.reown.com](https://cloud.reown.com) but the underlying protocol and npm packages (`@walletconnect/ethereum-provider`) remain unchanged.
 
 **Where do I get Sepolia ETH?**
 [sepoliafaucet.com](https://sepoliafaucet.com) or [faucet.quicknode.com](https://faucet.quicknode.com/ethereum/sepolia). Free, arrives in a few minutes.
