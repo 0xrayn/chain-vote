@@ -4,6 +4,7 @@ import { ethers } from "ethers";
 import { Proposal, VoteChoice } from "@/types";
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from "@/lib/contract";
 import { toast } from "sonner";
+import { useWalletContext } from "@/context/WalletContext";
 
 const DURATION_SECONDS: Record<string, bigint> = {
   "1 DAY":   86400n,
@@ -30,6 +31,7 @@ const ProposalsContext = createContext<ProposalsContextValue | null>(null);
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 export function ProposalsProvider({ children }: { children: React.ReactNode }) {
+  const { getActiveProvider } = useWalletContext();
   const [proposals,     setProposals]     = useState<Proposal[]>([]);
   const [myVotes,       setMyVotes]       = useState<Record<string, VoteChoice>>({});
   const [votingId,      setVotingId]      = useState<string | null>(null);
@@ -60,8 +62,9 @@ export function ProposalsProvider({ children }: { children: React.ReactNode }) {
       setIsOnChain(true);
 
       const resolvedAddress = address ?? walletAddressRef.current;
-      if (resolvedAddress && typeof window !== "undefined" && (window as any).ethereum) {
-        const provider = new ethers.BrowserProvider((window as any).ethereum);
+      const activeProvider = getActiveProvider();
+      if (resolvedAddress && activeProvider) {
+        const provider = new ethers.BrowserProvider(activeProvider);
         const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
         const voteMap: Record<string, VoteChoice> = {};
         const choiceMap: Record<number, VoteChoice> = { 1: "yes", 2: "no", 3: "abstain" };
@@ -99,9 +102,11 @@ export function ProposalsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!walletAddress || !isOnChain) return;
     const fetchVotes = async () => {
-      if (!contractReady || typeof window === "undefined" || !(window as any).ethereum) return;
+      if (!contractReady) return;
+      const activeProvider = getActiveProvider();
+      if (!activeProvider) return;
       try {
-        const provider = new ethers.BrowserProvider((window as any).ethereum);
+        const provider = new ethers.BrowserProvider(activeProvider);
         const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
         const voteMap: Record<string, VoteChoice> = {};
         const choiceMap: Record<number, VoteChoice> = { 1: "yes", 2: "no", 3: "abstain" };
@@ -136,8 +141,9 @@ export function ProposalsProvider({ children }: { children: React.ReactNode }) {
 
     setVotingId(id);
     try {
-      if (contractReady && typeof window !== "undefined" && (window as any).ethereum) {
-        const provider  = new ethers.BrowserProvider((window as any).ethereum);
+      const activeProvider = getActiveProvider();
+      if (contractReady && activeProvider) {
+        const provider  = new ethers.BrowserProvider(activeProvider);
         const signer    = await provider.getSigner();
         const contract  = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
         const choiceNum = choice === "yes" ? 1 : choice === "no" ? 2 : 3;
@@ -192,8 +198,9 @@ export function ProposalsProvider({ children }: { children: React.ReactNode }) {
     if (description.trim().length < 20) { toast.error("Description must be at least 20 characters."); return false; }
 
     try {
-      if (contractReady && typeof window !== "undefined" && (window as any).ethereum) {
-        const provider = new ethers.BrowserProvider((window as any).ethereum);
+      const activeProvider = getActiveProvider();
+      if (contractReady && activeProvider) {
+        const provider = new ethers.BrowserProvider(activeProvider);
         const signer   = await provider.getSigner();
         const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
         const durationSec = DURATION_SECONDS[duration] ?? DURATION_SECONDS["3 DAYS"];

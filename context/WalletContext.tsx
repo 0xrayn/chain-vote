@@ -35,6 +35,7 @@ interface WalletContextValue {
   switchToSepolia: () => Promise<void>;
   discoveredProviders: EIP6963ProviderDetail[];
   refreshBalance: () => Promise<void>;
+  getActiveProvider: () => any | null;
 }
 
 const WalletContext = createContext<WalletContextValue | null>(null);
@@ -598,6 +599,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Expose active provider agar ProposalsContext bisa pakai provider yang benar (WC atau browser)
+  const getActiveProvider = useCallback(() => {
+    return activeProviderRef.current ?? (typeof window !== "undefined" ? (window as any).ethereum : null);
+  }, []);
+
   const shortAddress = wallet.address
     ? `${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}`
     : null;
@@ -610,7 +616,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       wallet, connect, disconnect, shortAddress,
       isConnecting, isWrongNetwork,
       switchToSepolia: () => switchToSepolia(),
-      discoveredProviders, refreshBalance,
+      discoveredProviders, refreshBalance, getActiveProvider,
     }}>
       {children}
     </WalletContext.Provider>
