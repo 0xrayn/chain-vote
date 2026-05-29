@@ -150,15 +150,9 @@ export function ProposalsProvider({ children }: { children: React.ReactNode }) {
         const propNum   = parseInt(id.replace("VIP-", ""), 10);
 
         toast.info("Confirm the transaction in your wallet...");
-        // Estimate gas + 30% buffer
-        let gasLimit: bigint | undefined;
-        try {
-          const estimated = await contract.vote.estimateGas(propNum, choiceNum);
-          gasLimit = (estimated * 130n) / 100n;
-        } catch {
-          gasLimit = 150_000n; // fallback
-        }
-        const tx = await contract.vote(propNum, choiceNum, { gasLimit });
+        // Hardcode gas limit — vote butuh ~80-120k, kasih 200k buat aman
+        const GAS_VOTE = 200_000n;
+        const tx = await contract.vote(propNum, choiceNum, { gasLimit: GAS_VOTE });
         toast.info("Transaction sent! Waiting for confirmation...");
         await tx.wait();
         await fetch("/api/proposals", { method: "POST" }).catch(() => {});
@@ -214,15 +208,10 @@ export function ProposalsProvider({ children }: { children: React.ReactNode }) {
         const durationSec = DURATION_SECONDS[duration] ?? DURATION_SECONDS["3 DAYS"];
 
         toast.info("Confirm the transaction in your wallet...");
-        // Estimate gas + 40% buffer — createProposal butuh banyak gas karena string storage
-        let gasLimit: bigint | undefined;
-        try {
-          const estimated = await contract.createProposal.estimateGas(title.trim(), description.trim(), durationSec, 100n);
-          gasLimit = (estimated * 140n) / 100n;
-        } catch {
-          gasLimit = 500_000n; // fallback hardcoded kalau estimate gagal
-        }
-        const tx = await contract.createProposal(title.trim(), description.trim(), durationSec, 100n, { gasLimit });
+        // Hardcode gas limit — estimateGas via WalletConnect sering underestimate string storage ops
+        // 600k cukup untuk createProposal dengan title/desc panjang, actual usage ~150-300k
+        const GAS_CREATE = 600_000n;
+        const tx = await contract.createProposal(title.trim(), description.trim(), durationSec, 100n, { gasLimit: GAS_CREATE });
         toast.info("Transaction sent! Waiting for confirmation...");
         const receipt = await tx.wait();
         await fetch("/api/proposals", { method: "POST" }).catch(() => {});
