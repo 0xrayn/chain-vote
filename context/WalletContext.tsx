@@ -144,18 +144,14 @@ let wcProviderCache: any = null;
 async function getWalletConnectProvider(): Promise<any> {
   if (wcProviderCache?.connected) return wcProviderCache;
   const { EthereumProvider } = await import("@walletconnect/ethereum-provider");
+  const rpcUrl = process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL ?? "https://rpc2.sepolia.org";
   const provider = await EthereumProvider.init({
     projectId: WC_PROJECT_ID,
+    // Hanya Sepolia — jangan campur mainnet/polygon di optionalChains
+    // karena WC v2 butuh rpcMap entry untuk setiap chain yang didaftarkan
     chains: [SEPOLIA_CHAIN_ID],
-    optionalChains: [1, 137, 56],
+    optionalChains: [SEPOLIA_CHAIN_ID],
     showQrModal: true,
-    qrModalOptions: {
-      themeMode: "dark",
-      themeVariables: {
-        "--wcm-accent-color": "#00f5a0",
-        "--wcm-background-color": "#0a0f1a",
-      },
-    },
     metadata: {
       name: "ChainVotes",
       description: "Decentralized governance on Sepolia",
@@ -163,7 +159,8 @@ async function getWalletConnectProvider(): Promise<any> {
       icons: ["https://chainvotes.app/favicon.ico"],
     },
     rpcMap: {
-      [SEPOLIA_CHAIN_ID]: process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL ?? "https://rpc.sepolia.org",
+      // rpcMap WAJIB ada untuk setiap chain di chains + optionalChains
+      [SEPOLIA_CHAIN_ID]: rpcUrl,
     },
   });
   wcProviderCache = provider;
@@ -546,7 +543,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           const wcProvider = await EthereumProvider.init({
             projectId: WC_PROJECT_ID,
             chains: [SEPOLIA_CHAIN_ID],
-            optionalChains: [1, 137, 56],
+            optionalChains: [SEPOLIA_CHAIN_ID],
             showQrModal: false,
             metadata: {
               name: "ChainVotes",
@@ -555,7 +552,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
               icons: [],
             },
             rpcMap: {
-              [SEPOLIA_CHAIN_ID]: process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL ?? "https://rpc.sepolia.org",
+              [SEPOLIA_CHAIN_ID]: process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL ?? "https://rpc2.sepolia.org",
             },
           });
           if (wcProvider.connected && wcProvider.accounts?.length) {
