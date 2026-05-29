@@ -317,9 +317,21 @@ export function useWallet() {
 
         if (cancelled) { await wcProvider.disconnect().catch(() => {}); return; }
 
-        const accounts: string[] = wcProvider.accounts ?? [];
+        // Setelah connect(), accounts kadang belum terisi — coba eth_accounts dulu
+        let accounts: string[] = wcProvider.accounts ?? [];
         if (!accounts.length) {
-          toast.error("Tidak ada akun dari WalletConnect.");
+          try { accounts = await wcProvider.request({ method: "eth_accounts" }); } catch { /* ignore */ }
+        }
+        // Retry sekali lagi setelah 600ms kalau masih kosong (race condition WC)
+        if (!accounts.length) {
+          await new Promise((r) => setTimeout(r, 600));
+          accounts = wcProvider.accounts ?? [];
+          try {
+            if (!accounts.length) accounts = await wcProvider.request({ method: "eth_accounts" });
+          } catch { /* ignore */ }
+        }
+        if (!accounts.length) {
+          toast.error("Tidak ada akun dari WalletConnect. Coba connect ulang.");
           return;
         }
 
