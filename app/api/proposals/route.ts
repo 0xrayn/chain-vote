@@ -8,6 +8,11 @@ let cachedPayload: string | null = null;
 let cacheExpiresAt = 0;
 const CACHE_TTL_MS = 10_000;
 
+// Strip non-printable / control characters from on-chain strings before serving to client
+function sanitizeStr(s: string, maxLen: number): string {
+  return s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").slice(0, maxLen);
+}
+
 function secondsToLabel(remaining: bigint): string {
   if (remaining <= 0n) return "ENDED";
   const days  = remaining / 86400n;
@@ -74,8 +79,8 @@ export async function GET() {
         : statusFromCode(statuses[i]);
       return {
         id:          `VIP-${String(Number(id)).padStart(3, "0")}`,
-        title:       titles[i],
-        description: descriptions[i] ?? "",
+        title:       sanitizeStr(titles[i], 200),
+        description: sanitizeStr(descriptions[i] ?? "", 2000),
         status:      statusStr,
         yes:         Number(yesArr[i]),
         no:          Number(noArr[i]),
@@ -108,7 +113,14 @@ export async function GET() {
 }
 
 // POST /api/proposals — invalidate cache after vote/create
-export async function POST() {
+export async function POST(request: Request) {
+  const secret = process.env.INTERNAL_CACHE_SECRET;
+  if (secret) {
+    const provided = request.headers.get("x-internal-secret");
+    if (provided !== secret) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  }
   cachedPayload = null;
   cacheExpiresAt = 0;
   return NextResponse.json({ ok: true });

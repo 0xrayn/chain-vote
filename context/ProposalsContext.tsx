@@ -7,6 +7,15 @@ import { toast } from "sonner";
 import { useWalletContext } from "@/context/WalletContext";
 import { getFallbackProvider } from "@/lib/rpc";
 
+// Helper: invalidate server-side cache after on-chain writes
+function invalidateCache() {
+  const secret = process.env.NEXT_PUBLIC_INTERNAL_CACHE_SECRET;
+  return fetch("/api/proposals", {
+    method: "POST",
+    headers: secret ? { "x-internal-secret": secret } : {},
+  }).catch(() => {});
+}
+
 // ─── waitForReceipt ───────────────────────────────────────────────────────────
 // tx.wait() dari ethers memakai provider WalletConnect untuk polling, yang
 // sering lambat / silent-fail pada WC v2 mobile. Fungsi ini poll receipt
@@ -278,7 +287,7 @@ export function ProposalsProvider({ children }: { children: React.ReactNode }) {
             await fetchFromChain(null);
             return;
           }
-          await fetch("/api/proposals", { method: "POST" }).catch(() => {});
+          await invalidateCache();
           toast.success(`Vote confirmed on-chain: ${label}`, {
             action: { label: "Etherscan →", onClick: () => window.open(`https://sepolia.etherscan.io/tx/${tx.hash}`, "_blank") },
             duration: 8000,
@@ -401,7 +410,7 @@ export function ProposalsProvider({ children }: { children: React.ReactNode }) {
             return;
           }
 
-          await fetch("/api/proposals", { method: "POST" }).catch(() => {});
+          await invalidateCache();
 
           const iface = new ethers.Interface(CONTRACT_ABI as any);
           let newId = "?";

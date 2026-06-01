@@ -665,6 +665,30 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         const balance = await fetchBalance(address, false);
         setWallet({ connected: true, address, chainId, balance });
         startBalancePoll(address);
+
+        // Re-attach event listeners so wallet lock/account-switch works after refresh
+        const handleAccountsChanged = async (accs: string[]) => {
+          if (!accs?.length) {
+            stopBalancePoll();
+            setWallet({ connected: false, address: null, chainId: null, balance: null });
+            try { localStorage.removeItem(LAST_WALLET_KEY); } catch { /* ignore */ }
+            return;
+          }
+          const newAddr = accs[0];
+          const newBal = await fetchBalance(newAddr, false);
+          setWallet((prev) => ({ ...prev, address: newAddr, balance: newBal }));
+          startBalancePoll(newAddr);
+        };
+        const handleChainChanged = (hex: string) => {
+          const cid = parseInt(hex, 16);
+          setWallet((prev) => ({ ...prev, chainId: cid }));
+          if (cid !== SEPOLIA_CHAIN_ID) toast.warning("Network changed. Please switch to Sepolia.");
+          else toast.success("Now on Sepolia Testnet.");
+        };
+        try {
+          eth.on("accountsChanged", handleAccountsChanged);
+          eth.on("chainChanged", handleChainChanged);
+        } catch { /* some providers don't support .on() */ }
       } catch { /* ignore */ }
     };
     autoReconnect();

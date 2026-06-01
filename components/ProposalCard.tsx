@@ -52,10 +52,10 @@ export default function ProposalCard({ proposal: p, myVote, onVote, onConnectWal
   })();
   const canVote = isActive && !myVote && !pendingVote && connected && !isVoting;
 
-  const voteOpts: { key: VoteChoice; label: string; pct: number; count: number; color: string }[] = [
-    { key: "yes", label: "FOR", pct: yp, count: p.yes, color: "var(--neon)" },
-    { key: "no", label: "AGAINST", pct: np, count: p.no, color: "var(--danger)" },
-    { key: "abstain", label: "ABSTAIN", pct: ap, count: p.abstain, color: "var(--muted)" },
+  const voteOpts: { key: VoteChoice; label: string; desc: string; pct: number; count: number; color: string }[] = [
+    { key: "yes",     label: "FOR",     desc: "Support this proposal",         pct: yp, count: p.yes,     color: "var(--neon)"   },
+    { key: "no",      label: "AGAINST", desc: "Oppose this proposal",          pct: np, count: p.no,      color: "var(--danger)" },
+    { key: "abstain", label: "ABSTAIN", desc: "Acknowledge but do not decide", pct: ap, count: p.abstain, color: "var(--muted)"  },
   ];
 
   // Proposal masih "confirming" — tombol vote tidak ditampilkan sama sekali,
@@ -284,12 +284,19 @@ export default function ProposalCard({ proposal: p, myVote, onVote, onConnectWal
                   ) : isPending ? (
                     <Loader2 size={11} className="animate-spin" style={{ color: opt.color }} />
                   ) : null}
-                  <span
-                    className="text-xs tracking-widest"
-                    style={{ fontFamily: "var(--font-mono)", color: isSelected || isPending || isHovered ? opt.color : "var(--text2)" }}
-                  >
-                    {opt.label}{isPending ? "..." : ""}
-                  </span>
+                  <div className="flex flex-col gap-0.5">
+                    <span
+                      className="text-xs tracking-widest"
+                      style={{ fontFamily: "var(--font-mono)", color: isSelected || isPending || isHovered ? opt.color : "var(--text2)" }}
+                    >
+                      {opt.label}{isPending ? "..." : ""}
+                    </span>
+                    {(isHovered || isSelected || isPending) && (
+                      <span className="text-xs" style={{ color: "var(--muted)", fontSize: "0.62rem" }}>
+                        {opt.desc}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-xs" style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}>
@@ -360,7 +367,7 @@ export default function ProposalCard({ proposal: p, myVote, onVote, onConnectWal
           >
             <div className="w-1.5 h-1.5 rounded-full glow-pulse" style={{ background: "var(--neon)" }} />
             <span className="text-xs tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "var(--neon)" }}>
-              VOTED {myVote.toUpperCase()}
+              VOTED {myVote === "yes" ? "FOR" : myVote === "no" ? "AGAINST" : "ABSTAIN"}
             </span>
           </div>
         ) : isActive && !connected ? (
