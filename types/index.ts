@@ -1,4 +1,4 @@
-export type ProposalStatus = "active" | "ended" | "pending";
+export type ProposalStatus = "active" | "ended" | "pending" | "confirming";
 export type VoteChoice = "yes" | "no" | "abstain";
 
 export interface Proposal {
@@ -11,6 +11,7 @@ export interface Proposal {
   abstain: number;
   total: number;
   ends: string;
+  endTime?: number;
   creator: string;
   createdAt: string;
   quorum: number;

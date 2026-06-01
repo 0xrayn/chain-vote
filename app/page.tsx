@@ -1,7 +1,7 @@
 "use client";
 import dynamic from "next/dynamic";
 import { useState, useEffect } from "react";
-import { LayoutGrid, PlusCircle, BarChart3, Activity, Users, Zap, TrendingUp } from "lucide-react";
+import { LayoutGrid, PlusCircle, BarChart3, Activity, Users, Zap, TrendingUp, ChevronLeft, ChevronRight } from "lucide-react";
 import { useWalletContext } from "@/context/WalletContext";
 import { useProposals } from "@/hooks/useProposals";
 import Navbar from "@/components/Navbar";
@@ -31,6 +31,8 @@ export default function Home() {
 
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [connectingWallet, setConnectingWallet] = useState("");
+  const [proposalPage, setProposalPage] = useState(1);
+  const PROPOSALS_PER_PAGE = 6;
 
   const handleConnect = () => setShowWalletModal(true);
 
@@ -205,43 +207,86 @@ export default function Home() {
 
           {/* Tab content */}
           <div className="max-w-6xl mx-auto px-3 sm:px-4 pb-4">
-            {activeTab === "proposals" && (
-              <div className="animate-scaleIn">
-                {isLoading ? (
-                  <ProposalGridSkeleton count={6} />
-                ) : proposals.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-20 gap-4">
-                    <div
-                      className="w-16 h-16 rounded-2xl flex items-center justify-center animate-float"
-                      style={{ background: "rgba(0,245,160,0.06)", border: "1px solid rgba(0,245,160,0.2)" }}
-                    >
-                      <LayoutGrid size={24} style={{ color: "var(--neon)" }} />
-                    </div>
-                    <p className="text-sm tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}>
-                      NO ACTIVE PROPOSALS
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                    {proposals.map((p, i) => (
+            {activeTab === "proposals" && (() => {
+              const totalPages = Math.ceil(proposals.length / PROPOSALS_PER_PAGE);
+              const paged = proposals.slice((proposalPage - 1) * PROPOSALS_PER_PAGE, proposalPage * PROPOSALS_PER_PAGE);
+              return (
+                <div className="animate-scaleIn">
+                  {isLoading ? (
+                    <ProposalGridSkeleton count={6} />
+                  ) : proposals.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 gap-4">
                       <div
-                        key={p.id}
-                        className="animate-fadeInUp"
-                        style={{ animationDelay: `${i * 0.06}s` }}
+                        className="w-16 h-16 rounded-2xl flex items-center justify-center animate-float"
+                        style={{ background: "rgba(0,245,160,0.06)", border: "1px solid rgba(0,245,160,0.2)" }}
                       >
-                        <ProposalCard
-                          proposal={p}
-                          myVote={myVotes[p.id]}
-                          connected={wallet.connected && !isWrongNetwork}
-                          onVote={(id, choice) => vote(id, choice, wallet.connected && !isWrongNetwork)}
-                          isVoting={votingId === p.id}
-                        />
+                        <LayoutGrid size={24} style={{ color: "var(--neon)" }} />
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+                      <p className="text-sm tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}>
+                        NO ACTIVE PROPOSALS
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-between mb-4">
+                          <span className="text-xs tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}>
+                            {proposals.length} PROPOSALS
+                          </span>
+                          <span className="text-xs tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}>
+                            PAGE {proposalPage} / {totalPages}
+                          </span>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                        {paged.map((p, i) => (
+                          <div key={p.id} className="animate-fadeInUp" style={{ animationDelay: `${i * 0.06}s` }}>
+                            <ProposalCard
+                              proposal={p}
+                              myVote={myVotes[p.id]}
+                              connected={wallet.connected && !isWrongNetwork}
+                              onVote={(id, choice) => vote(id, choice, wallet.connected && !isWrongNetwork)}
+                              onConnectWallet={handleConnect}
+                              isVoting={votingId === p.id}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-center gap-1.5 mt-7">
+                          <button
+                            onClick={() => { setProposalPage(p => p - 1); window.scrollTo({ top: 400, behavior: "smooth" }); }}
+                            disabled={proposalPage === 1}
+                            className="flex items-center justify-center rounded-lg transition-all"
+                            style={{ width: 32, height: 32, background: "var(--surface2)", border: "1px solid var(--border)", color: proposalPage === 1 ? "var(--border2)" : "var(--text2)", cursor: proposalPage === 1 ? "default" : "pointer", opacity: proposalPage === 1 ? 0.4 : 1 }}
+                          >
+                            <ChevronLeft size={13} />
+                          </button>
+                          {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+                            <button
+                              key={n}
+                              onClick={() => { setProposalPage(n); window.scrollTo({ top: 400, behavior: "smooth" }); }}
+                              className="flex items-center justify-center rounded-lg font-bold transition-all"
+                              style={{ width: 32, height: 32, fontFamily: "var(--font-mono)", fontSize: "11px", background: n === proposalPage ? "var(--neon)" : "var(--surface2)", border: `1px solid ${n === proposalPage ? "var(--neon)" : "var(--border)"}`, color: n === proposalPage ? "var(--bg)" : "var(--muted)", cursor: "pointer" }}
+                            >
+                              {n}
+                            </button>
+                          ))}
+                          <button
+                            onClick={() => { setProposalPage(p => p + 1); window.scrollTo({ top: 400, behavior: "smooth" }); }}
+                            disabled={proposalPage === totalPages}
+                            className="flex items-center justify-center rounded-lg transition-all"
+                            style={{ width: 32, height: 32, background: "var(--surface2)", border: "1px solid var(--border)", color: proposalPage === totalPages ? "var(--border2)" : "var(--text2)", cursor: proposalPage === totalPages ? "default" : "pointer", opacity: proposalPage === totalPages ? 0.4 : 1 }}
+                          >
+                            <ChevronRight size={13} />
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })()}
 
             {activeTab === "create" && (
               <div className="animate-scaleIn">

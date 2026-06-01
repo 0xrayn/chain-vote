@@ -21,9 +21,10 @@ function pct(v: number, t: number) {
 }
 
 const STATUS_CFG: Record<string, { color: string; bg: string; border: string; label: string }> = {
-  active:  { color: "var(--neon)",  bg: "rgba(0,245,160,0.07)",  border: "rgba(0,245,160,0.25)",  label: "LIVE"    },
-  ended:   { color: "var(--muted)", bg: "rgba(74,122,155,0.07)", border: "rgba(74,122,155,0.2)",  label: "ENDED"   },
-  pending: { color: "var(--warn)",  bg: "rgba(255,165,2,0.07)",  border: "rgba(255,165,2,0.25)",  label: "PENDING" },
+  active:     { color: "var(--neon)",  bg: "rgba(0,245,160,0.07)",  border: "rgba(0,245,160,0.25)",  label: "LIVE"       },
+  ended:      { color: "var(--muted)", bg: "rgba(74,122,155,0.07)", border: "rgba(74,122,155,0.2)",  label: "ENDED"      },
+  pending:    { color: "var(--warn)",  bg: "rgba(255,165,2,0.07)",  border: "rgba(255,165,2,0.25)",  label: "PENDING"    },
+  confirming: { color: "var(--warn)",  bg: "rgba(255,165,2,0.05)",  border: "rgba(255,165,2,0.35)",  label: "CONFIRMING" },
 };
 
 function VoteBar({ label, count, total, color }: { label: string; count: number; total: number; color: string }) {
@@ -75,7 +76,7 @@ export default function ProposalDetailPage() {
 
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [connectingWallet, setConnectingWallet] = useState("");
-  const [localVoting, setLocalVoting] = useState(false);
+  const [pendingVote, setPendingVote] = useState<VoteChoice | null>(null);
   const [hoveredVote, setHoveredVote] = useState<VoteChoice | null>(null);
 
   const proposal = proposals.find((p) => p.id === decodeURIComponent(id));
@@ -89,9 +90,14 @@ export default function ProposalDetailPage() {
 
   const handleVote = async (choice: VoteChoice) => {
     if (!proposal || !canVote) return;
-    setLocalVoting(true);
-    try { await vote(proposal.id, choice, wallet.connected && !isWrongNetwork); }
-    finally { setLocalVoting(false); }
+    setPendingVote(choice);
+    try {
+      const ok = await vote(proposal.id, choice, wallet.connected && !isWrongNetwork);
+      if (ok === false) setPendingVote(null);
+      else setPendingVote(null);
+    } catch {
+      setPendingVote(null);
+    }
   };
 
   if (!proposal) {
@@ -125,7 +131,12 @@ export default function ProposalDetailPage() {
   }
 
   const st = STATUS_CFG[proposal.status] ?? STATUS_CFG.pending;
-  const canVote = proposal.status === "active" && !myVote && wallet.connected && !isWrongNetwork && !votingId && !localVoting;
+  // Guard ganda: cek status string DAN endTime client-side
+  const nowSec = Math.floor(Date.now() / 1000);
+  const isExpiredByTime = Boolean(proposal.endTime && nowSec > proposal.endTime);
+  const isActive = proposal.status === "active" && !isExpiredByTime;
+  const isConfirming = proposal.status === "confirming";
+  const canVote = isActive && !myVote && !pendingVote && wallet.connected && !isWrongNetwork && !votingId;
   const quorumPct = proposal.quorum > 0 ? Math.min(100, Math.round((proposal.total / proposal.quorum) * 100)) : 0;
   const quorumMet = proposal.total >= proposal.quorum;
 
@@ -241,7 +252,28 @@ export default function ProposalDetailPage() {
                       YOU VOTED {myVote.toUpperCase()}
                     </p>
                   </div>
-                ) : proposal.status !== "active" ? (
+                ) : isConfirming ? (
+                  <div className="flex flex-col items-center gap-4 py-6">
+                    <Loader2 size={28} className="animate-spin" style={{ color: "var(--warn)" }} />
+                    <p className="text-xs tracking-widest text-center" style={{ fontFamily: "var(--font-mono)", color: "var(--warn)" }}>
+                      AWAITING ON-CHAIN CONFIRMATION
+                    </p>
+                    <p className="text-xs text-center" style={{ color: "var(--muted)" }}>
+                      Voting will open once your proposal is confirmed on Sepolia
+                    </p>
+                    {proposal.txHash && (
+                      <a
+                        href={`https://sepolia.etherscan.io/tx/${proposal.txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs"
+                        style={{ fontFamily: "var(--font-mono)", color: "var(--warn)", opacity: 0.8, textDecoration: "underline" }}
+                      >
+                        View on Etherscan ↗
+                      </a>
+                    )}
+                  </div>
+                ) : !isActive ? (
                   <div className="flex flex-col items-center gap-3 py-4">
                     <Shield size={20} style={{ color: "var(--muted)" }} />
                     <p className="text-xs tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}>
@@ -262,25 +294,36 @@ export default function ProposalDetailPage() {
                       CONNECT
                     </button>
                   </div>
+                ) : isWrongNetwork ? (
+                  <div className="flex flex-col items-center gap-3 py-4">
+                    <Shield size={20} style={{ color: "var(--warn)" }} />
+                    <p className="text-xs tracking-widest text-center" style={{ fontFamily: "var(--font-mono)", color: "var(--warn)" }}>
+                      WRONG NETWORK
+                    </p>
+                  </div>
                 ) : (
                   <div className="flex flex-col gap-2">
                     {voteOpts.map((opt) => {
-                      const isHovered = hoveredVote === opt.key;
+                      const isPending  = pendingVote === opt.key;
+                      const isHovered  = canVote && hoveredVote === opt.key;
                       return (
                         <button key={opt.key}
-                          onClick={() => handleVote(opt.key)}
-                          onMouseEnter={() => setHoveredVote(opt.key)}
+                          onClick={() => { if (canVote) handleVote(opt.key); }}
+                          onMouseEnter={() => { if (canVote) setHoveredVote(opt.key); }}
                           onMouseLeave={() => setHoveredVote(null)}
                           disabled={!canVote}
-                          className="flex items-center justify-between px-4 py-3 rounded-xl text-xs tracking-widest transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex items-center justify-between px-4 py-3 rounded-xl text-xs tracking-widest transition-all duration-200"
                           style={{
                             fontFamily: "var(--font-mono)",
-                            color: isHovered ? opt.color : "var(--text2)",
-                            border: `1px solid ${isHovered ? opt.color : "var(--border)"}`,
-                            background: isHovered ? `${opt.color}08` : "transparent",
+                            pointerEvents: canVote ? "auto" : "none",
+                            opacity: pendingVote && !isPending ? 0.45 : canVote || isPending ? 1 : 0.45,
+                            cursor: canVote ? "pointer" : "default",
+                            color: isPending ? opt.color : isHovered ? opt.color : "var(--text2)",
+                            border: `1px solid ${isPending ? opt.color : isHovered ? opt.color : "var(--border)"}`,
+                            background: isPending ? `${opt.color}08` : isHovered ? `${opt.color}08` : "transparent",
                           }}>
-                          <span>{opt.label}</span>
-                          {localVoting && <Loader2 size={11} className="animate-spin" style={{ color: opt.color }} />}
+                          <span>{opt.label}{isPending ? "..." : ""}</span>
+                          {isPending && <Loader2 size={11} className="animate-spin" style={{ color: opt.color }} />}
                         </button>
                       );
                     })}

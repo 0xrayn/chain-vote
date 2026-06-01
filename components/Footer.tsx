@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { Zap, ExternalLink, Github, Twitter, ArrowRight } from "lucide-react";
+import { Zap, ExternalLink, Github, Linkedin, ArrowRight } from "lucide-react";
 
 export default function Footer() {
   const year = new Date().getFullYear();
@@ -19,7 +19,7 @@ export default function Footer() {
     Community: [
       { label: "Discord", href: "#" },
       { label: "Forum", href: "#" },
-      { label: "Twitter", href: "#" },
+      { label: "LinkedIn", href: "https://linkedin.com/in/ryan-dwi-wicaksono" },
     ],
   };
 
@@ -114,10 +114,16 @@ export default function Footer() {
           </a>
 
           <div className="flex items-center gap-2">
-            {[{ icon: <Github size={13} />, href: "#" }, { icon: <Twitter size={13} />, href: "#" }].map((s, i) => (
+            {[
+              { icon: <Github size={13} />, href: "https://github.com/0xrayn", label: "GitHub" },
+              { icon: <Linkedin size={13} />, href: "https://linkedin.com/in/ryan-dwi-wicaksono", label: "LinkedIn" },
+            ].map((s) => (
               <a
-                key={i}
+                key={s.label}
                 href={s.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={s.label}
                 className="w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-200 hover:scale-110"
                 style={{ color: "var(--muted)", background: "var(--surface2)", border: "1px solid var(--border)" }}
               >

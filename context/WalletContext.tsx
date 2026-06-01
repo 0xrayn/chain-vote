@@ -3,6 +3,7 @@ import { createContext, useContext, useRef, useEffect, useState, useCallback, Re
 import { WalletState } from "@/types";
 import { toast } from "sonner";
 import { ethers } from "ethers";
+import { SEPOLIA_RPC_URLS, withRpcFallback } from "@/lib/rpc";
 
 export const SEPOLIA_CHAIN_ID = 11155111;
 export const SEPOLIA_HEX = "0xaa36a7";
@@ -11,7 +12,7 @@ const SEPOLIA_PARAMS = {
   chainId: SEPOLIA_HEX,
   chainName: "Sepolia Testnet",
   nativeCurrency: { name: "SepoliaETH", symbol: "ETH", decimals: 18 },
-  rpcUrls: ["https://rpc.sepolia.org", "https://ethereum-sepolia-rpc.publicnode.com"],
+  rpcUrls: SEPOLIA_RPC_URLS,
   blockExplorerUrls: ["https://sepolia.etherscan.io"],
 };
 
@@ -140,31 +141,72 @@ async function requestAccounts(provider: any): Promise<string[]> {
 }
 
 let wcProviderCache: any = null;
+// Promise lock: satu EthereumProvider.init() berjalan dalam satu waktu.
+// wcInitPromise TIDAK di-null setelah resolve sehingga panggilan berikutnya
+// langsung mendapat promise yang sudah selesai tanpa memulai init baru.
+// Ini mencegah "WalletConnect Core is already initialized" warning.
+// wcInitPromise hanya di-null saat disconnect() eksplisit.
+let wcInitPromise: Promise<any> | null = null;
 
-async function getWalletConnectProvider(): Promise<any> {
-  if (wcProviderCache?.connected) return wcProviderCache;
-  const { EthereumProvider } = await import("@walletconnect/ethereum-provider");
-  const rpcUrl = process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL ?? "https://rpc2.sepolia.org";
-  const provider = await EthereumProvider.init({
-    projectId: WC_PROJECT_ID,
-    // Hanya Sepolia — jangan campur mainnet/polygon di optionalChains
-    // karena WC v2 butuh rpcMap entry untuk setiap chain yang didaftarkan
-    chains: [SEPOLIA_CHAIN_ID],
-    optionalChains: [SEPOLIA_CHAIN_ID],
-    showQrModal: true,
-    metadata: {
-      name: "ChainVotes",
-      description: "Decentralized governance on Sepolia",
-      url: typeof window !== "undefined" ? window.location.origin : "https://chainvotes.app",
-      icons: ["https://chainvotes.app/favicon.ico"],
-    },
-    rpcMap: {
-      // rpcMap WAJIB ada untuk setiap chain di chains + optionalChains
-      [SEPOLIA_CHAIN_ID]: rpcUrl,
-    },
-  });
-  wcProviderCache = provider;
-  return provider;
+// Hapus sisa session WalletConnect orphan dari localStorage.
+// Session orphan terjadi saat tab ditutup paksa / browser crash dan menyebabkan
+// "No matching key" dan "Pending session not found" di console.
+function clearOrphanWcSessions(): void {
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (
+        k.startsWith("wc@2:") ||
+        k.startsWith("walletconnect") ||
+        k.startsWith("W3M") ||
+        k.startsWith("wagmi.wallet") ||
+        k === "WALLETCONNECT_DEEPLINK_CHOICE"
+      )) keysToRemove.push(k);
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+  } catch { /* ignore - private browsing */ }
+}
+
+async function getWalletConnectProvider(forceNew = false): Promise<any> {
+  // Return cached instance jika masih connected
+  if (!forceNew && wcProviderCache?.connected) return wcProviderCache;
+
+  // Jika init sedang berjalan, tunggu promise yang sama - jangan init ulang
+  if (wcInitPromise) return wcInitPromise;
+
+  wcInitPromise = (async () => {
+    const { EthereumProvider } = await import("@walletconnect/ethereum-provider");
+    let provider: any = null;
+    for (const rpcUrl of SEPOLIA_RPC_URLS) {
+      try {
+        provider = await EthereumProvider.init({
+          projectId: WC_PROJECT_ID,
+          chains: [SEPOLIA_CHAIN_ID],
+          optionalChains: [SEPOLIA_CHAIN_ID],
+          showQrModal: true,
+          disableProviderPing: true,
+          metadata: {
+            name: "ChainVotes",
+            description: "Decentralized governance on Sepolia",
+            url: typeof window !== "undefined" ? window.location.origin : "https://chainvotes.app",
+            icons: ["https://chainvotes.app/favicon.ico"],
+          },
+          rpcMap: { [SEPOLIA_CHAIN_ID]: rpcUrl },
+        });
+        break;
+      } catch (err: any) {
+        console.warn(`[WalletConnect] init failed with ${rpcUrl}: ${err?.message?.slice(0, 60)}`);
+        provider = null;
+      }
+    }
+    if (!provider) throw new Error("WalletConnect failed to initialize on all RPC endpoints.");
+    wcProviderCache = provider;
+    return provider;
+  })();
+  // Tidak ada .finally() yang null-kan wcInitPromise di sini.
+  // Promise disimpan permanent sampai disconnect() eksplisit.
+  return wcInitPromise;
 }
 
 // ─── Provider Component ────────────────────────────────────────────────────
@@ -179,17 +221,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const balancePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ─── Balance refresh ────────────────────────────────────────────────────
-  // RPC URLs untuk fallback balance fetch — selalu pakai ini untuk WalletConnect
-  const RPC_URLS = [
-    process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL,
-    "https://rpc2.sepolia.org",
-    "https://ethereum-sepolia-rpc.publicnode.com",
-    "https://sepolia.drpc.org",
-  ].filter(Boolean) as string[];
-
   const fetchBalance = useCallback(async (address: string, isWalletConnect = false): Promise<string> => {
-    // WalletConnect: langsung pakai JsonRpcProvider, tidak lewat WC provider
-    // Browser wallet: coba window.ethereum dulu, fallback ke RPC
+    // Browser wallet: try window.ethereum first, then fall back to RPC
     if (!isWalletConnect) {
       try {
         const eth = activeProviderRef.current ?? (typeof window !== "undefined" ? (window as any).ethereum : null);
@@ -200,19 +233,20 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           });
           return parseFloat(ethers.formatEther(BigInt(balHex))).toFixed(4);
         }
-      } catch { /* fallthrough ke RPC */ }
+      } catch { /* fall through to RPC */ }
     }
 
-    // Coba RPC URLs satu per satu
-    for (const rpcUrl of RPC_URLS) {
-      try {
+    // WalletConnect or browser wallet fallback: try each RPC in order
+    try {
+      return await withRpcFallback(async (rpcUrl) => {
         const rpcProvider = new ethers.JsonRpcProvider(rpcUrl);
         const bal = await rpcProvider.getBalance(address);
         return parseFloat(ethers.formatEther(bal)).toFixed(4);
-      } catch { /* coba RPC berikutnya */ }
+      });
+    } catch {
+      return "0.0000";
     }
-    return "0.0000";
-  }, [RPC_URLS]);
+  }, []);
 
   const refreshBalance = useCallback(async () => {
     setWallet((prev) => {
@@ -303,31 +337,63 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       // WalletConnect path
       if (walletType === "walletconnect") {
         if (!WC_PROJECT_ID || WC_PROJECT_ID === "YOUR_PROJECT_ID_HERE") {
-          toast.error("WalletConnect Project ID belum dikonfigurasi.");
+          toast.error("WalletConnect Project ID not configured.");
           return;
         }
-        toast.info("Membuka QR Code WalletConnect...", { duration: 5000 });
+        toast.info("Opening WalletConnect QR Code...", { duration: 5000 });
         let wcProvider: any;
         try {
+          // Coba provider yang sudah ada dulu; kalau connect() gagal karena
+          // session orphan, bersihkan storage dan init ulang (forceNew=true)
           wcProvider = await getWalletConnectProvider();
         } catch {
-          toast.error("Gagal inisialisasi WalletConnect. Cek koneksi internet kamu.");
+          toast.error("Failed to initialize WalletConnect. Check your internet connection.");
           return;
         }
         if (cancelled) { await wcProvider.disconnect().catch(() => {}); return; }
         try {
           await wcProvider.connect();
         } catch (connErr: any) {
-          if (cancelled) return;
-          const msg = connErr?.message ?? "";
-          if (msg.includes("User rejected") || msg.includes("rejected")) {
-            toast.error("Koneksi WalletConnect dibatalkan.");
-          } else if (msg.includes("Modal closed")) {
-            toast.info("Modal ditutup.");
+          // Jika gagal karena session lama yang corrupt, bersihkan dan coba ulang sekali
+          const connMsg = connErr?.message ?? "";
+          if (
+            connMsg.includes("No matching key") ||
+            connMsg.includes("Pending session not found") ||
+            connMsg.includes("session") ||
+            connMsg.includes("pairing")
+          ) {
+            try { await wcProvider.disconnect().catch(() => {}); } catch { /* ignore */ }
+            clearOrphanWcSessions();
+            wcProviderCache = null;
+            wcInitPromise = null;
+            try {
+              wcProvider = await getWalletConnectProvider(true);
+              if (cancelled) { await wcProvider.disconnect().catch(() => {}); return; }
+              await wcProvider.connect();
+            } catch (retryErr: any) {
+              if (cancelled) return;
+              const retryMsg = retryErr?.message ?? "";
+              if (retryMsg.includes("User rejected") || retryMsg.includes("Modal closed")) {
+                toast.info("WalletConnect cancelled.");
+              } else {
+                toast.error(`WalletConnect error: ${retryMsg.slice(0, 100)}`);
+              }
+              return;
+            }
+            // connect() retry berhasil — lanjut ke account resolution di bawah
           } else {
-            toast.error(`WalletConnect error: ${msg.slice(0, 100)}`);
+            // Error bukan karena session orphan
+            if (cancelled) return;
+            const msg = connErr?.message ?? "";
+            if (msg.includes("User rejected") || msg.includes("rejected")) {
+              toast.error("WalletConnect connection cancelled.");
+            } else if (msg.includes("Modal closed")) {
+              toast.info("Modal closed.");
+            } else {
+              toast.error(`WalletConnect error: ${msg.slice(0, 100)}`);
+            }
+            return;
           }
-          return;
         }
         if (cancelled) { await wcProvider.disconnect().catch(() => {}); return; }
 
@@ -342,7 +408,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             if (!accounts.length) accounts = await wcProvider.request({ method: "eth_accounts" });
           } catch { /* ignore */ }
         }
-        if (!accounts.length) { toast.error("Tidak ada akun dari WalletConnect."); return; }
+        if (!accounts.length) { toast.error("No accounts received from WalletConnect."); return; }
 
         const chainId = wcProvider.chainId ?? SEPOLIA_CHAIN_ID;
         const address = accounts[0];
@@ -353,8 +419,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         startBalancePoll(address, true);
 
         if (chainId !== SEPOLIA_CHAIN_ID) {
-          toast.success("WalletConnect terhubung! 🎉");
-          toast.warning('Kamu di jaringan salah. Klik "WRONG NETWORK" untuk pindah ke Sepolia.', { duration: 6000 });
+          toast.success("WalletConnect connected! 🎉");
+          toast.warning('Wrong network detected. Click "WRONG NETWORK" to switch to Sepolia.', { duration: 6000 });
         } else {
           toast.success(`WalletConnect: ${address.slice(0, 6)}...${address.slice(-4)} 🎉`);
         }
@@ -375,8 +441,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
         wcProvider.on("chainChanged", (chainIdNum: number) => {
           setWallet((prev) => ({ ...prev, chainId: chainIdNum }));
-          if (chainIdNum !== SEPOLIA_CHAIN_ID) toast.warning("Network berganti. Silakan pindah ke Sepolia.");
-          else toast.success("Sekarang di Sepolia Testnet.");
+          if (chainIdNum !== SEPOLIA_CHAIN_ID) toast.warning("Network changed. Please switch to Sepolia.");
+          else toast.success("Now on Sepolia Testnet.");
         });
 
         wcProvider.on("disconnect", () => {
@@ -384,8 +450,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           setWallet({ connected: false, address: null, chainId: null, balance: null });
           activeProviderRef.current = null;
           wcProviderCache = null;
+          wcInitPromise = null;
+          clearOrphanWcSessions();
           try { localStorage.removeItem(LAST_WALLET_KEY); } catch { /* ignore */ }
-          toast.info("WalletConnect terputus.");
+          toast.info("WalletConnect disconnected.");
         });
         return;
       }
@@ -409,12 +477,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           rainbow:  "https://rainbow.me/download",
         };
         const url = installUrls[walletType.toLowerCase()] ?? "https://metamask.io/download/";
-        toast.error(`${walletType} tidak ditemukan. Membuka halaman instalasi...`);
+        toast.error(`${walletType} not found. Opening install page...`);
         window.open(url, "_blank", "noopener,noreferrer");
         return;
       }
       activeProviderRef.current = provider;
-      toast.info("Buka wallet kamu dan setujui permintaan koneksi...", { duration: 8000 });
+      toast.info("Open your wallet and approve the connection request...", { duration: 8000 });
 
       let accounts: string[];
       try {
@@ -423,21 +491,21 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         const code = reqErr.code ?? reqErr?.error?.code;
         if (reqErr.message === "WALLET_TIMEOUT") {
-          toast.error("Wallet tidak merespons. Pastikan wallet terbuka lalu coba lagi.");
+          toast.error("Wallet not responding. Make sure your wallet is open and try again.");
           return;
         }
         if (code === 4001 || reqErr.message?.includes("rejected") || reqErr.message?.includes("denied")) {
-          toast.error("Koneksi ditolak.");
+          toast.error("Connection rejected.");
           return;
         }
         if (code === -32002) {
-          toast.warning("Ada permintaan koneksi pending — buka wallet dan setujui.");
+          toast.warning("Connection request pending — open your wallet and approve it.");
           return;
         }
         throw reqErr;
       }
       if (cancelled) return;
-      if (!accounts?.length) { toast.error("Tidak ada akun ditemukan."); return; }
+      if (!accounts?.length) { toast.error("No accounts found."); return; }
 
       let chainIdHex = "0x0";
       try { chainIdHex = await provider.request({ method: "eth_chainId" }); } catch { /* ignore */ }
@@ -451,10 +519,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       startBalancePoll(address);
 
       if (chainId !== SEPOLIA_CHAIN_ID) {
-        toast.success(`${walletType} terhubung! 🎉`);
-        toast.warning('Kamu di jaringan salah. Klik "WRONG NETWORK" untuk pindah ke Sepolia.', { duration: 6000 });
+        toast.success(`${walletType} connected! 🎉`);
+        toast.warning('Wrong network detected. Click "WRONG NETWORK" to switch to Sepolia.', { duration: 6000 });
       } else {
-        toast.success(`${walletType} terhubung: ${address.slice(0, 6)}...${address.slice(-4)} 🎉`);
+        toast.success(`${walletType} connected: ${address.slice(0, 6)}...${address.slice(-4)} 🎉`);
       }
 
       const handleAccountsChanged = async (accs: string[]) => {
@@ -462,21 +530,21 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           stopBalancePoll();
           setWallet({ connected: false, address: null, chainId: null, balance: null });
           try { localStorage.removeItem(LAST_WALLET_KEY); } catch { /* ignore */ }
-          toast.warning("Wallet terputus.");
+          toast.warning("Wallet disconnected.");
           return;
         }
         const newAddr = accs[0];
         const newBal = await fetchBalance(newAddr, false);
         setWallet((prev) => ({ ...prev, address: newAddr, balance: newBal }));
         startBalancePoll(newAddr);
-        toast.info(`Akun: ${newAddr.slice(0, 6)}...${newAddr.slice(-4)}`);
+        toast.info(`Account: ${newAddr.slice(0, 6)}...${newAddr.slice(-4)}`);
       };
 
       const handleChainChanged = (hex: string) => {
         const cid = parseInt(hex, 16);
         setWallet((prev) => ({ ...prev, chainId: cid }));
-        if (cid !== SEPOLIA_CHAIN_ID) toast.warning("Jaringan berganti. Silakan pindah ke Sepolia.");
-        else toast.success("Sekarang di Sepolia Testnet.");
+        if (cid !== SEPOLIA_CHAIN_ID) toast.warning("Network changed. Please switch to Sepolia.");
+        else toast.success("Now on Sepolia Testnet.");
       };
 
       try {
@@ -487,7 +555,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     } catch (err: any) {
       if (cancelled) return;
       const msg = err?.message ?? err?.toString() ?? "Unknown error";
-      toast.error(`Error koneksi: ${msg.slice(0, 120)}`);
+      toast.error(`Connection error: ${msg.slice(0, 120)}`);
     } finally {
       if (!cancelled) setIsConnecting(false);
       abortRef.current = null;
@@ -505,7 +573,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       try {
         if (provider.disconnect) {
           await provider.disconnect();
+          // Reset semua WC state agar init bersih saat connect berikutnya
           wcProviderCache = null;
+          wcInitPromise = null;
+          clearOrphanWcSessions();
         } else {
           await provider.request({ method: "wallet_revokePermissions", params: [{ eth_accounts: {} }] });
         }
@@ -518,7 +589,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem(LAST_WALLET_KEY);
       sessionStorage.setItem("chainvotes_disconnected", "1");
     } catch { /* ignore */ }
-    toast.info("Wallet terputus dari app.");
+    toast.info("Wallet disconnected from app.");
   }, [stopBalancePoll]);
 
   // ─── Auto-reconnect ───────────────────────────────────────────────────────
@@ -537,26 +608,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       } catch { return; }
 
       // WalletConnect auto-reconnect
+      // Use getWalletConnectProvider() so the promise lock is respected —
+      // prevents double init when auto-reconnect and manual connect race on page load
       if (lastWalletType === "walletconnect") {
         try {
-          const { EthereumProvider } = await import("@walletconnect/ethereum-provider");
-          const wcProvider = await EthereumProvider.init({
-            projectId: WC_PROJECT_ID,
-            chains: [SEPOLIA_CHAIN_ID],
-            optionalChains: [SEPOLIA_CHAIN_ID],
-            showQrModal: false,
-            metadata: {
-              name: "ChainVotes",
-              description: "Decentralized governance on Sepolia",
-              url: typeof window !== "undefined" ? window.location.origin : "https://chainvotes.app",
-              icons: [],
-            },
-            rpcMap: {
-              [SEPOLIA_CHAIN_ID]: process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL ?? "https://rpc2.sepolia.org",
-            },
-          });
+          const wcProvider = await getWalletConnectProvider();
           if (wcProvider.connected && wcProvider.accounts?.length) {
-            wcProviderCache = wcProvider;
             activeProviderRef.current = wcProvider;
             const address = wcProvider.accounts[0];
             const chainId = wcProvider.chainId ?? SEPOLIA_CHAIN_ID;
@@ -568,19 +625,37 @@ export function WalletProvider({ children }: { children: ReactNode }) {
               setWallet({ connected: false, address: null, chainId: null, balance: null });
               activeProviderRef.current = null;
               wcProviderCache = null;
+              wcInitPromise = null;
+              clearOrphanWcSessions();
               try { localStorage.removeItem(LAST_WALLET_KEY); } catch { /* ignore */ }
             });
+          } else {
+            // Session WC ada tapi tidak valid (orphan) — bersihkan agar
+            // connect berikutnya mulai dari fresh tanpa error "No matching key"
+            wcProviderCache = null;
+            wcInitPromise = null;
+            clearOrphanWcSessions();
+            try { localStorage.removeItem(LAST_WALLET_KEY); } catch { /* ignore */ }
           }
-        } catch { /* WC session expired */ }
+        } catch {
+          // Session expired atau tidak ada — bersihkan residual storage
+          wcProviderCache = null;
+          wcInitPromise = null;
+          clearOrphanWcSessions();
+          try { localStorage.removeItem(LAST_WALLET_KEY); } catch { /* ignore */ }
+        }
         return;
       }
 
       // Browser wallet auto-reconnect
-      const providers = await discoverProviders(800);
+      // Wait up to 2s for wallet to inject — some extensions are slow on cold start
+      const providers = await discoverProviders(2000);
       const provider = resolveProvider(lastWalletType, providers);
+      // Also check window.ethereum as fallback in case EIP-6963 announce was missed
       const eth = provider ?? (window as any).ethereum;
       if (!eth) return;
       try {
+        // eth_accounts (no popup) — returns [] if not previously connected
         const accounts: string[] = await eth.request({ method: "eth_accounts" });
         if (!accounts?.length) return;
         const chainIdHex: string = await eth.request({ method: "eth_chainId" });

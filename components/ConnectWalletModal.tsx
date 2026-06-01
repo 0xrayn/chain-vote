@@ -26,48 +26,15 @@ const WALLET_OPTIONS: WalletOption[] = [
     popular: true,
   },
   {
-    id: "bitget",
-    name: "Bitget Wallet",
-    desc: "All-in-one Web3 wallet",
-    icon: "🔷",
-    rdns: ["com.bitget.web3", "com.bitkeep", "com.bitget.web3wallet"],
-    installUrl: "https://web3.bitget.com/en/wallet-download",
-    popular: true,
-  },
-  {
     id: "walletconnect",
     name: "WalletConnect",
-    desc: "Scan QR dari Trust, Rainbow, MetaMask Mobile & 300+ wallet HP",
+    desc: "Scan QR code from Trust, Rainbow, MetaMask Mobile & 300+ mobile wallets",
     icon: "🔗",
     rdns: [],
     installUrl: "",
     isMobile: true,
     alwaysShow: true,
     popular: true,
-  },
-  {
-    id: "coinbase",
-    name: "Coinbase Wallet",
-    desc: "Simple & secure",
-    icon: "🔵",
-    rdns: ["com.coinbase.wallet"],
-    installUrl: "https://www.coinbase.com/wallet/downloads",
-  },
-  {
-    id: "trust",
-    name: "Trust Wallet",
-    desc: "Browser extension Trust Wallet",
-    icon: "🛡️",
-    rdns: ["com.trustwallet.app"],
-    installUrl: "https://trustwallet.com/browser-extension",
-  },
-  {
-    id: "brave",
-    name: "Brave Wallet",
-    desc: "Built into Brave browser",
-    icon: "🦁",
-    rdns: ["com.brave.wallet"],
-    installUrl: "https://brave.com/download/",
   },
 ];
 
@@ -123,10 +90,6 @@ export default function ConnectWalletModal({
     const eth = (window as any).ethereum;
     if (!eth) return false;
     if (option.id === "metamask" && eth.isMetaMask) return true;
-    if (option.id === "bitget" && (eth.isBitKeep || eth.isBitget)) return true;
-    if (option.id === "coinbase" && eth.isCoinbaseWallet) return true;
-    if (option.id === "brave" && eth.isBraveWallet) return true;
-    if (option.id === "trust" && (eth.isTrust || eth.isTrustWallet)) return true;
     return false;
   };
 
@@ -164,7 +127,7 @@ export default function ConnectWalletModal({
               <p className="text-xs" style={{ color: "var(--muted)" }}>
                 {discoveredProviders.length > 0
                   ? `${discoveredProviders.length} wallet${discoveredProviders.length > 1 ? "s" : ""} detected`
-                  : "Pilih wallet kamu"}
+                  : "Choose your wallet"}
               </p>
             </div>
           </div>
@@ -197,8 +160,8 @@ export default function ConnectWalletModal({
           >
             <Shield size={13} style={{ color: "var(--neon)", marginTop: "2px", flexShrink: 0 }} />
             <p className="text-xs leading-relaxed" style={{ color: "var(--text2)" }}>
-              App ini berjalan di <span style={{ color: "var(--neon)" }}>Sepolia Testnet</span> — hanya test ETH, bukan uang nyata.
-              Setelah connect, klik <span style={{ color: "var(--warn)" }}>WRONG NETWORK</span> jika muncul.
+              This app runs on <span style={{ color: "var(--neon)" }}>Sepolia Testnet</span> — test ETH only, not real money.
+              After connecting, click <span style={{ color: "var(--warn)" }}>WRONG NETWORK</span> if it appears.
             </p>
           </div>
 
@@ -210,14 +173,14 @@ export default function ConnectWalletModal({
             >
               <AlertTriangle size={13} style={{ color: "var(--warn)", marginTop: "2px", flexShrink: 0 }} />
               <p className="text-xs leading-relaxed" style={{ color: "var(--text2)" }}>
-                <span style={{ color: "var(--warn)" }}>Tidak ada wallet browser terdeteksi.</span>{" "}
-                Gunakan <strong>WalletConnect</strong> untuk connect dari HP, atau install{" "}
-                <strong>MetaMask / Bitget</strong> di browser ini lalu refresh.
+                <span style={{ color: "var(--warn)" }}>No browser wallet detected.</span>{" "}
+                Use <strong>WalletConnect</strong> to connect from mobile, or install{" "}
+                <strong>MetaMask</strong> in this browser then refresh.
               </p>
             </div>
           )}
 
-          {/* Detected / always-show wallets */}
+          {/* Wallet list */}
           <div className="flex flex-col gap-2 mb-3">
             {visibleWallets.map((w) => {
               const isWC = w.id === "walletconnect";
@@ -309,7 +272,7 @@ export default function ConnectWalletModal({
           {notInstalled.length > 0 && (
             <div className="flex flex-col gap-1.5 mb-4">
               <p className="text-xs px-1 mb-1" style={{ color: "var(--muted)", fontFamily: "var(--font-mono)", fontSize: "0.6rem", letterSpacing: "0.08em" }}>
-                INSTALL DULU
+                INSTALL FIRST
               </p>
               {notInstalled.map((w) => (
                 <button
@@ -339,7 +302,7 @@ export default function ConnectWalletModal({
           )}
 
           <p className="text-xs text-center" style={{ color: "var(--muted)" }}>
-            Butuh test ETH?{" "}
+            Need test ETH?{" "}
             <a href="https://sepoliafaucet.com" target="_blank" rel="noopener noreferrer"
               style={{ color: "var(--neon2)", textDecoration: "underline" }}>
               Get Sepolia ETH →
@@ -353,7 +316,7 @@ export default function ConnectWalletModal({
         >
           <Zap size={11} style={{ color: "var(--neon)" }} />
           <span className="text-xs" style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}>
-            MULTI-WALLET · EIP-6963 · WALLETCONNECT · SEPOLIA
+            EIP-6963 · WALLETCONNECT · SEPOLIA TESTNET
           </span>
         </div>
       </div>

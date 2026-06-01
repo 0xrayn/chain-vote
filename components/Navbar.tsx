@@ -53,7 +53,7 @@ export default function Navbar({
   const handleWalletAction = () => {
     if (isConnecting) return;
     if (isWrongNetwork && onSwitchNetwork) {
-      toast.info("Membuka permintaan ganti jaringan ke Sepolia di wallet kamu...", { duration: 4000 });
+      toast.info("Requesting network switch to Sepolia in your wallet...", { duration: 4000 });
       onSwitchNetwork();
       return;
     }

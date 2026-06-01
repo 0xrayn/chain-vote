@@ -1,6 +1,7 @@
 "use client";
+import { useState } from "react";
 import { Proposal } from "@/types";
-import { Trophy, Users, TrendingUp } from "lucide-react";
+import { Trophy, Users, TrendingUp, ChevronLeft, ChevronRight } from "lucide-react";
 
 function pct(v: number, t: number) {
   return t === 0 ? 0 : Math.round((v / t) * 100);
@@ -12,14 +13,91 @@ const STATUS_COLOR: Record<string, string> = {
   pending: "var(--warn)",
 };
 
+const PER_PAGE = 5;
+
 interface ResultsProps {
   proposals: Proposal[];
 }
 
-export default function Results({ proposals }: ResultsProps) {
+function PaginationBar({ page, totalPages, onChange }: { page: number; totalPages: number; onChange: (p: number) => void }) {
+  if (totalPages <= 1) return null;
   return (
-    <div className="flex flex-col gap-5">
-      {proposals.map((p) => {
+    <div className="flex items-center justify-center gap-1.5 mt-6">
+      <button
+        onClick={() => onChange(page - 1)}
+        disabled={page === 1}
+        className="flex items-center justify-center rounded-lg transition-all"
+        style={{
+          width: 32, height: 32,
+          background: "var(--surface2)", border: "1px solid var(--border)",
+          color: page === 1 ? "var(--border2)" : "var(--text2)",
+          cursor: page === 1 ? "default" : "pointer",
+          opacity: page === 1 ? 0.4 : 1,
+        }}
+      >
+        <ChevronLeft size={13} />
+      </button>
+
+      {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+        <button
+          key={n}
+          onClick={() => onChange(n)}
+          className="flex items-center justify-center rounded-lg font-bold transition-all"
+          style={{
+            width: 32, height: 32,
+            fontFamily: "var(--font-mono)", fontSize: "11px",
+            background: n === page ? "var(--neon)" : "var(--surface2)",
+            border: `1px solid ${n === page ? "var(--neon)" : "var(--border)"}`,
+            color: n === page ? "var(--bg)" : "var(--muted)",
+            cursor: "pointer",
+          }}
+        >
+          {n}
+        </button>
+      ))}
+
+      <button
+        onClick={() => onChange(page + 1)}
+        disabled={page === totalPages}
+        className="flex items-center justify-center rounded-lg transition-all"
+        style={{
+          width: 32, height: 32,
+          background: "var(--surface2)", border: "1px solid var(--border)",
+          color: page === totalPages ? "var(--border2)" : "var(--text2)",
+          cursor: page === totalPages ? "default" : "pointer",
+          opacity: page === totalPages ? 0.4 : 1,
+        }}
+      >
+        <ChevronRight size={13} />
+      </button>
+    </div>
+  );
+}
+
+export default function Results({ proposals }: ResultsProps) {
+  const [page, setPage] = useState(1);
+  const totalPages = Math.ceil(proposals.length / PER_PAGE);
+  const paginated = proposals.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  const handleChange = (p: number) => {
+    setPage(p);
+    window.scrollTo({ top: 400, behavior: "smooth" });
+  };
+
+  return (
+    <div>
+      {proposals.length > 0 && totalPages > 1 && (
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-xs tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}>
+            {proposals.length} TOTAL
+          </span>
+          <span className="text-xs tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "var(--muted)" }}>
+            PAGE {page} / {totalPages}
+          </span>
+        </div>
+      )}
+      <div className="flex flex-col gap-5">
+      {paginated.map((p) => {
         const yp = pct(p.yes, p.total);
         const np = pct(p.no, p.total);
         const ap = pct(p.abstain, p.total);
@@ -108,6 +186,8 @@ export default function Results({ proposals }: ResultsProps) {
           </div>
         );
       })}
+      </div>
+      <PaginationBar page={page} totalPages={totalPages} onChange={handleChange} />
     </div>
   );
 }
